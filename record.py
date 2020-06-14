@@ -8,6 +8,7 @@ class Record(object):
         super(Record, self).__init__()
         self.n = 0
         self.x = []
+        self.cons = []
         self.y = torch.tensor([], dtype=torch.float, device=opt.device,
                               requires_grad=False)
         self.reward_best = 0.0
@@ -19,6 +20,18 @@ class Record(object):
                                                  requires_grad=False)))
         if yn > self.reward_best:
             self.reward_best = yn
+        self.n += 1
+
+
+    def add_cons_sample(self, xn, yn, cons):
+        self.x.append(xn)
+        self.y = torch.cat((self.y, torch.tensor([yn], dtype=torch.float,
+                                                 device=opt.device,
+                                                 requires_grad=False)))
+        self.cons.append(cons)
+        if cons > 0:
+            if yn > self.reward_best:
+                self.reward_best = yn
         self.n += 1
 
     def save(self, save_path):

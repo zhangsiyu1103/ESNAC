@@ -96,7 +96,7 @@ class Architecture(nn.Module):
         return np.array(action)
 
     def comp_rep(self, action):
-        n = self.n        
+        n = self.n
         V = self.V
         p = 0
         base_mat = [(V[i].rep.copy()) for i in range(n)]

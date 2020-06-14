@@ -6,7 +6,7 @@ from torch.utils.data.sampler import SubsetRandomSampler
 
 class CIFAR100(object):
 
-    def __init__(self, batch_size=128, num_workers=4):
+    def __init__(self, batch_size=128, num_workers=32):
         train_transform = transforms.Compose([
             transforms.RandomCrop(32, padding=4),
             transforms.RandomHorizontalFlip(),
@@ -33,7 +33,7 @@ class CIFAR100(object):
 
 class CIFAR100Val(object):
 
-    def __init__(self, batch_size=128, num_workers=4, val_size=5000):
+    def __init__(self, batch_size=128, num_workers=32, val_size=5000):
         train_transform = transforms.Compose([
             transforms.RandomCrop(32, padding=4),
             transforms.RandomHorizontalFlip(),

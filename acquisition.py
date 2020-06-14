@@ -5,7 +5,10 @@ import options as opt
 
 def get_rep_acq(teacher, kernel, action):
     rep = teacher.comp_rep(action)
-    acq = kernel.acquisition(rep)
+    if opt.bo_cons:
+        acq = kernel.acquisition_cons(rep)
+    else:
+        acq = kernel.acquisition(rep)
     return rep, acq
 
 def random_search(teacher, kernel, search_n=opt.ac_search_n):

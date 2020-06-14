@@ -15,6 +15,7 @@ import os
 import random
 import time
 from tensorboardX import SummaryWriter
+import torch.nn as nn
 
 def seed_everything(seed=127):
     random.seed(seed)
@@ -24,21 +25,23 @@ def seed_everything(seed=127):
     os.environ['PYTHONHASHSEED'] = str(seed)
     torch.backends.cudnn.deterministic = True
 
-def new_kernels(teacher, record, kernel_n, alpha=opt.co_alpha,
+def new_kernels(teacher, record, kernel_n, cons_type, cons_val, alpha=opt.co_alpha,
                 beta=opt.co_beta, gamma=opt.co_gamma):
     start_time = time.time()
     kernels = []
     for i in range(kernel_n):
-        kernel = Kernel(teacher.rep, 0.0)
+        if cons_type == 'size':
+            kernel = Kernel(teacher.rep, 0.0, 1.0)
         indices = []
         for j in range(record.n):
             if random.random() < gamma:
                 indices.append(j)
         if len(indices) > 0:
             x = [record.x[i] for i in indices]
+            cons_val = [record.cons[i] for i in indices]
             indices = torch.tensor(indices, dtype=torch.long, device=opt.device)
             y = torch.index_select(record.y, 0, indices)
-            kernel.add_batch(x, y)
+            kernel.add_batch(x, y, cons_val)
         ma = 0.0
         for j in range(100):
             ll = kernel.opt_step()
@@ -79,30 +82,42 @@ def next_samples(teacher, kernels, kernel_n):
                             time.time() - start_time, opt.i)
         return archs_best, reps_best
 
-def reward(teacher, teacher_acc, students, dataset):
+def reward(teacher, teacher_acc, students, dataset, objective, cons_type, cons_val):
     start_time = time.time()
     n = len(students)
     students_best, students_acc = tr.train_model_search(teacher, students, dataset)
     rs = []
+    cs = []
     for j in range(n):
-        c = 1.0 - 1.0 * students_best[j].param_n() / teacher.param_n()
+        s = 1.0 * students_best[j].param_n() / teacher.param_n()
         a = 1.0 * students_acc[j] / teacher_acc
-        r = c * (2 - c) * a
-        opt.writer.add_scalar('compression/compression_score', c,
+        r = 0
+        if objective = 'accuracy':
+            r += a
+        if cons_type = 'size':
+            r += 2 * (cons_val -s)
+        elif cons_type = 'latency':
+            r += 2 * (cons_val -l)
+        elif cons_type = 'energy':
+            r += 2 * (cons_val - e)
+        r = a + 2*(s-cons_val)
+        opt.writer.add_scalar('compression/model_size', s,
                               opt.i * n - n + 1 + j)
         opt.writer.add_scalar('compression/accuracy_score', a,
                               opt.i * n - n + 1 + j)
         opt.writer.add_scalar('compression/reward', r,
                               opt.i * n - n + 1 + j)
         rs.append(r)
-        students_best[j].comp = c
-        students_best[j].acc = students_acc[j]
+        cs.append(cons_val-s)
+        students_best[j].size = s
+        students_best[j].accuracy = students_acc[j]
         students_best[j].reward = r
     opt.writer.add_scalar('compression/evaluating_time',
                           time.time() - start_time, opt.i)
-    return students_best, rs
+    return students_best, rs, cs
 
-def compression(teacher, dataset, record, step_n=opt.co_step_n,
+
+def compression(teacher, dataset, record, objective, cons_type, cons_val, step_n=opt.co_step_n,
                 kernel_n=opt.co_kernel_n, best_n=opt.co_best_n):
 
     teacher_acc = tr.test_model(teacher, dataset)
@@ -111,16 +126,19 @@ def compression(teacher, dataset, record, step_n=opt.co_step_n,
         print ('Search step %d/%d' %(i, step_n))
         start_time = time.time()
         opt.i = i
-        kernels = new_kernels(teacher, record, kernel_n)
+        kernels = new_kernels(teacher, record, kernel_n, cons_type, cons_val)
         students_best, xi = next_samples(teacher, kernels, kernel_n)
-        students_best, yi = reward(teacher, teacher_acc, students_best, dataset)
+        students_best, yi, cons = reward(teacher, teacher_acc, students_best, dataset, objective, cons_type, cons_val)
         for j in range(kernel_n):
-            record.add_sample(xi[j], yi[j])
+            record.add_cons_sample(xi[j], yi[j], cons[j])
             if yi[j] == record.reward_best:
                 opt.writer.add_scalar('compression/reward_best', yi[j], i)
         students_best = [student.to('cpu') for student in students_best]
         archs_best.extend(students_best)
-        archs_best.sort(key=attrgetter('reward'), reverse=True)
+        #filter out unconstraint
+        archs_best = list(filter(lambda x:getattr(x, cons_type) <= cons_val, archs_best))
+
+        archs_best.sort(key=attrgetter(objective), reverse=True)
         archs_best = archs_best[:best_n]
         for j, arch in enumerate(archs_best):
             arch.save('%s/arch_%d.pth' % (opt.savedir, j))
@@ -128,13 +146,38 @@ def compression(teacher, dataset, record, step_n=opt.co_step_n,
         opt.writer.add_scalar('compression/step_time',
                               time.time() - start_time, i)
 
-def fully_train(dataset, best_n=opt.co_best_n):
+def random_compression(teacher, dataset, objective, cons_type, cons_val, num_model, best_n = opt.co_best_n):
+    teacher_acc = tr.test_model(teacher, dataset)
+    archs = []
+    for i in range(num_model):
+        print(i)
+        action = teacher.comp_action_rand()
+        archs.append(teacher.comp_arch(action))
+    students_best, yi, cons = reward(teacher, teacher_acc, archs, dataset, cons_type, cons_val)
+
+    students_best = [student.to('cpu') for student in students_best]
+
+    archs_best = list(filter(lambda x:getattr(x, cons_type) <= cons_val, students_best))
+
+    archs_best.sort(key=attrgetter(objective), reverse=True)
+
+    archs_best = archs_best[:best_n]
+    for j, arch in enumerate(archs_best):
+        arch.save('%s/arch_%d.pth' % (opt.savedir, j))
+
+
+
+def fully_train(teacher, dataset, best_n=opt.co_best_n):
     dataset = getattr(datasets, dataset)()
     for i in range(best_n):
         print ('Fully train student architecture %d/%d' %(i+1, best_n))
         model = torch.load('%s/arch_%d.pth' % (opt.savedir, i))
-        tr.train_model_student(model, dataset,
-                               '%s/fully_%d.pth' % (opt.savedir, i), i)
+        tr.train_model_student_kd(teacher, model, dataset,
+                               '%s/fully_kd_%d.pth' % (opt.savedir, i), i)
+
+
+
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Learnable Embedding Space for Efficient Neural Architecture Compression')
@@ -145,6 +188,9 @@ if __name__ == '__main__':
                         help='cifar10/cifar100')
     parser.add_argument('--suffix', type=str, default='0', help='0/1/2/3...')
     parser.add_argument('--device', type=str, default='cuda', help='cpu/cuda')
+    parser.add_argument('--objective', type=str, default='accuracy', help='maximizing objective')
+    parser.add_argument('--constype', type=str, default='size', help='size/energy/latency')
+    parser.add_argument('--consval', type=float, default=0.1, help='different value range for different constraint')
 
     args = parser.parse_args()
 
@@ -177,8 +223,12 @@ if __name__ == '__main__':
                                                     (args.network, args.dataset, args.suffix))
 
     model = torch.load(opt.model).to(opt.device)
+    model.avgpool = nn.AvgPool2d(4, stride=1)
     teacher = Architecture(*(getattr(gr, opt.co_graph_gen)(model)))
     dataset = getattr(datasets, opt.dataset)()
     record = Record()
-    compression(teacher, dataset, record)
-    fully_train(dataset=opt.dataset[:-3])
+    if opt.bo:
+        compression(teacher, dataset, record, args.objective, args.constype, args.consval)
+    else:
+        random_compression(teacher, dataset, args.objective, args.constype, args.consval, 80)
+    fully_train(teacher, dataset=opt.dataset[:-3])

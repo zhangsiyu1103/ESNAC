@@ -7,10 +7,12 @@ import options as opt
 from math import sqrt
 from scipy.stats import norm
 import os
+import numpy as np
+from GPy.models import GPRegression
 
 class Kernel(object):
 
-    def __init__(self, x0, y0, alpha=opt.ke_alpha, beta=opt.ke_beta,
+    def __init__(self, x0, y0, cons = None, alpha=opt.ke_alpha, beta=opt.ke_beta,
                  input_size=opt.ke_input_size, hidden_size=opt.ke_hidden_size,
                  num_layers=opt.ke_num_layers, bidirectional=opt.ke_bidirectional,
                  lr=opt.ke_lr, weight_decay=opt.ke_weight_decay):
@@ -30,6 +32,11 @@ class Kernel(object):
         self.x = [x0]
         self.y = torch.tensor([y0], dtype=torch.float, device=opt.device,
                               requires_grad=False)
+        self.cons = [cons]
+        inp, out = clean_x(self.x, self.cons)
+        self.model = GPRegression(inp, out)
+        self.model.Gaussian_noise.constrain_fixed(1e-6, warning=False)
+        self.model.optimize()
         self.x_best = x0
         self.y_best = y0
         self.i_best = 0
@@ -73,6 +80,20 @@ class Kernel(object):
         sigma = torch.sqrt(sigma + self.beta)
         return mu, sigma
 
+    def acquisition_cons(self, xn):
+        with torch.no_grad():
+            xn_ = np.array([xn.cpu().numpy().flatten()])
+            mu_cons, sigma_cons = self.model.predict(xn_)
+            sigma_cons = sqrt(sigma_cons)
+            PoF = norm.cdf(0, mu_cons, sigma_cons)
+            mu, sigma = self.predict(xn)
+            mu = mu.item()
+            sigma = sigma.item()
+            y_best = self.y_best
+            z = (mu - y_best) / sigma
+            ei = (mu - y_best) * norm.cdf(z) + sigma * norm.pdf(z)
+            return ei*PoF
+
     def acquisition(self, xn):
         with torch.no_grad():
             mu, sigma = self.predict(xn)
@@ -81,7 +102,8 @@ class Kernel(object):
             y_best = self.y_best
             z = (mu - y_best) / sigma
             ei = (mu - y_best) * norm.cdf(z) + sigma * norm.pdf(z)
-            return ei
+            return ei*PoF
+
 
     def kernel_batch_ex(self, t):
         n = self.n
@@ -111,16 +133,21 @@ class Kernel(object):
         sigma = torch.sqrt(sigma + self.beta)
         return mu, sigma
 
-    def add_sample(self, xn, yn):
+    def add_sample(self, xn, yn, consn):
         self.x.append(xn)
         self.y = torch.cat((self.y, torch.tensor([yn], dtype=torch.float,
                                                  device=opt.device,
                                                  requires_grad=False)))
+        self.cons.append(consn)
+        inp, out = clean_x(self.x, self.cons)
+        self.model.set_XY(inp, out)
+        self.model.optimize()
         n = self.n
-        if yn > self.y_best:
-            self.x_best = xn
-            self.y_best = yn
-            self.i_best = n
+        if consn > 0:
+            if yn > self.y_best:
+                self.x_best = xn
+                self.y_best = yn
+                self.i_best = n
         en = self.embedding(xn)
         k = self.kernel_batch(en)
         kn = self.kernel(en, en)
@@ -131,16 +158,21 @@ class Kernel(object):
         self.K_inv = torch.inverse(self.K + self.beta *
                                    torch.eye(self.n, device=opt.device))
 
-    def add_batch(self, x, y):
+    def add_batch(self, x, y, cons):
         self.x.extend(x)
         self.y = torch.cat((self.y, y))
+        self.cons.extend(cons)
+        inp, out = clean_x(self.x, self.cons)
+        self.model.set_XY(inp, out)
+        self.model.optimize()
         m = len(x)
         for i in range(m):
             n = self.n
-            if y[i].item() > self.y_best:
-                self.x_best = x[i]
-                self.y_best = y[i].item()
-                self.i_best = n
+            if self.cons[i] > 0:
+                if y[i].item() > self.y_best:
+                    self.x_best = x[i]
+                    self.y_best = y[i].item()
+                    self.i_best = n
             en = self.embedding(x[i])
             k = self.kernel_batch(en)
             kn = self.kernel(en, en)
@@ -193,3 +225,10 @@ class Kernel(object):
         if not os.path.exists(path):
             os.makedirs(path)
         torch.save(self, save_path)
+
+def clean_x(input, output):
+    inp = []
+    for i in input:
+        inp.append(i.cpu().numpy().flatten())
+    return np.array(inp), np.reshape(output, (-1 ,1))
+

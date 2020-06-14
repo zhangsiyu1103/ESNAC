@@ -6,6 +6,7 @@ import torch.backends.cudnn as cudnn
 import options as opt
 import os
 import time
+import numpy as np
 
 def init_model(model):
     for module in model.modules():
@@ -43,6 +44,33 @@ def test_model(model, dataset):
             correct += predicted.eq(targets).sum().item()
     acc = 100.0 * correct / total
     return acc
+
+
+def test_model_latency(model, dataset):
+    model.eval()
+    loader = None
+    if hasattr(dataset, 'test_loader'):
+        loader = dataset.test_loader
+    elif hasattr(dataset, 'val_loader'):
+        loader = dataset.val_loader
+    else:
+        raise NotImplementedError('Unknown dataset!')
+    latency = []
+    with torch.no_grad():
+        for batch_idx, (inputs, targets) in enumerate(loader):
+            inputs = inputs.to(opt.device)
+            targets = targets.to(opt.device)
+            start_time = time.time()
+
+            outputs = model(inputs)
+            torch.cuda.synchronize()
+
+            time_taken = time.time() - start_time
+            latency.append(time_taken * 1000)
+        lat = np.mean(latency)
+    return lat
+
+
 
 def train_model_teacher(model_, dataset, save_path, epochs=400, lr=0.1,
                         momentum=0.9, weight_decay=5e-4):
@@ -136,6 +164,74 @@ def train_model_student(model_, dataset, save_path, idx,
             torch.save(model_best, save_path)
     return model_best, acc_best
 
+
+def train_model_student_kd(teacher_, model_, dataset, save_path, idx,
+                        optimization=opt.tr_fu_optimization,
+                        epochs=opt.tr_fu_epochs, lr=opt.tr_fu_lr,
+                        momentum=opt.tr_fu_momentum,
+                        weight_decay=opt.tr_fu_weight_decay,
+                        lr_schedule=opt.tr_fu_lr_schedule,
+                        from_scratch=opt.tr_fu_from_scratch):
+    acc_best = 0
+    model_best = None
+    model = torch.nn.DataParallel(model_.to(opt.device))
+    teacher = torch.nn.DataParallel(teacher_.to(opt.device))
+    criterion1 = nn.CrossEntropyLoss()
+    criterion2 = nn.MSELoss()
+
+    if optimization == 'SGD':
+        optimizer = optim.SGD(model.parameters(), lr=lr, momentum=momentum,
+                              weight_decay=weight_decay)
+    elif optimization == 'Adam':
+        optimizer = optim.Adam(model.parameters(), lr=lr,
+                              weight_decay=weight_decay)
+    if lr_schedule == 'step':
+        scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=100,
+                                              gamma=0.1)
+    elif lr_schedule == 'linear':
+        batch_cnt = len(dataset.train_loader)
+        n_total_exp = epochs * batch_cnt
+        lr_lambda = lambda n_exp_seen: 1 - n_exp_seen/n_total_exp
+        scheduler = optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lr_lambda)
+    if from_scratch:
+        init_model(model)
+
+    for i in range(1, epochs + 1):
+        model.train()
+        if lr_schedule == 'step':
+            scheduler.step()
+        loss_total = 0
+        batch_cnt = 0
+        for batch_idx, (inputs, targets) in enumerate(dataset.train_loader):
+            teacher_outputs = None
+            with torch.no_grad():
+                teacher_outputs = teacher(inputs)
+
+            inputs = inputs.to(opt.device)
+            targets = targets.to(opt.device)
+            optimizer.zero_grad()
+            outputs = model(inputs)
+            loss1 = criterion1(outputs, targets)
+            loss2 = criterion2(outputs, teacher_outputs)
+            loss = loss1 + loss2
+            loss.backward()
+            optimizer.step()
+            if lr_schedule == 'linear':
+                scheduler.step()
+            loss_total += loss.item()
+            batch_cnt += 1
+        opt.writer.add_scalar('training_%d/loss' % (idx), loss_total / batch_cnt, i)
+        acc = test_model(model, dataset)
+        opt.writer.add_scalar('training_%d/acc' % (idx), acc, i)
+        if acc > acc_best:
+            acc_best = acc
+            model.module.acc = acc
+            model_best = model.module
+            torch.save(model_best, save_path)
+    return model_best, acc_best
+
+
+
 def train_model_search(teacher_, students_, dataset,
                        optimization=opt.tr_se_optimization,
                        epochs=opt.tr_se_epochs, lr=opt.tr_se_lr,
@@ -171,6 +267,7 @@ def train_model_search(teacher_, students_, dataset,
                         for j in range(n)]
 
     for i in range(1, epochs + 1):
+        print("epochs:",i)
         teacher.eval()
         for j in range(n):
             students[j].train()
