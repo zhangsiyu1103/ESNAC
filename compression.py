@@ -91,6 +91,8 @@ def reward(teacher, teacher_acc, students, dataset, objective, cons_type, cons_v
     for j in range(n):
         s = 1.0 * students_best[j].param_n() / teacher.param_n()
         a = 1.0 * students_acc[j] / teacher_acc
+        l=0
+        e=0
         r = 0
         if objective = 'accuracy':
             r += a
@@ -100,7 +102,7 @@ def reward(teacher, teacher_acc, students, dataset, objective, cons_type, cons_v
             r += 2 * (cons_val -l)
         elif cons_type = 'energy':
             r += 2 * (cons_val - e)
-        r = a + 2*(s-cons_val)
+        #r = a + 2*(cons_val-s)
         opt.writer.add_scalar('compression/model_size', s,
                               opt.i * n - n + 1 + j)
         opt.writer.add_scalar('compression/accuracy_score', a,
@@ -108,7 +110,7 @@ def reward(teacher, teacher_acc, students, dataset, objective, cons_type, cons_v
         opt.writer.add_scalar('compression/reward', r,
                               opt.i * n - n + 1 + j)
         rs.append(r)
-        cs.append(cons_val-s)
+        cs.append(s-cons_val)
         students_best[j].size = s
         students_best[j].accuracy = students_acc[j]
         students_best[j].reward = r
