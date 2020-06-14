@@ -94,13 +94,13 @@ def reward(teacher, teacher_acc, students, dataset, objective, cons_type, cons_v
         l=0
         e=0
         r = 0
-        if objective = 'accuracy':
+        if objective == 'accuracy':
             r += a
-        if cons_type = 'size':
+        if cons_type == 'size':
             r += 2 * (cons_val -s)
-        elif cons_type = 'latency':
+        elif cons_type == 'latency':
             r += 2 * (cons_val -l)
-        elif cons_type = 'energy':
+        elif cons_type == 'energy':
             r += 2 * (cons_val - e)
         #r = a + 2*(cons_val-s)
         opt.writer.add_scalar('compression/model_size', s,
