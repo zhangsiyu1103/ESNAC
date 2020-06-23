@@ -17,7 +17,7 @@ class IMAGENET(object):
 
         test_transform = transforms.Compose([
             transforms.Resize(256),
-            transforms.CenterCrop(224)
+            transforms.CenterCrop(224),
             transforms.ToTensor(),
             transforms.Normalize((0.485, 0.456, 0.406),
                 (0.229, 0.224, 0.225)),
@@ -46,7 +46,7 @@ class IMAGENETVal(object):
 
         val_transform = transforms.Compose([
             transforms.Resize(256),
-            transforms.CenterCrop(224)
+            transforms.CenterCrop(224),
             transforms.ToTensor(),
             transforms.Normalize((0.485, 0.456, 0.406),
                 (0.229, 0.224, 0.225)),
@@ -55,7 +55,7 @@ class IMAGENETVal(object):
         train_dataset = torchvision.datasets.ImageFolder(root='/net/ohm/export/iss/szhang/imagenet/train',
             transform=train_transform)
         test_dataset = torchvision.datasets.ImageFolder(root='/net/ohm/export/iss/szhang/imagenet/val',
-            transform=test_transform)
+            transform=val_transform)
 
         total_size = len(train_dataset)
         indices = list(range(total_size))

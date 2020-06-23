@@ -238,7 +238,10 @@ if __name__ == '__main__':
                                                     (args.network, args.dataset, args.suffix))
 
     model = torch.load(opt.model).to(opt.device)
-    model.avgpool = nn.AvgPool2d(4, stride=1)
+    if args.network == 'alexnet':
+        model.avgpool = nn.AdaptiveAvgPool2d((6, 6))
+    else:
+        model.avgpool = nn.AvgPool2d(4, stride=1)
     teacher = Architecture(*(getattr(gr, opt.co_graph_gen)(model)))
     dataset = getattr(datasets, opt.dataset)()
     record = Record()
