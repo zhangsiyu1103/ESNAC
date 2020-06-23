@@ -30,6 +30,35 @@ def get_graph_vgg(vgg):
         E[i][i + 1] = True
     return n, V, E
 
+def get_graph_alex(alex):
+    D = dict()
+    n = 0
+    V = []
+    E = [[]]
+
+    def record_hook(module, input, output):
+        key = id(module)
+        if key not in D:
+            D[key] = len(V)
+            V.append(Layer(module, input[0].shape, output.shape))
+
+    hooks = []
+    for module in alex.modules():
+        if isinstance(module, Layer.supported_base):
+            hooks.append(module.register_forward_hook(record_hook))
+    input = torch.rand(1, 3, 224, 224, device=opt.device)
+    output = alex(input)
+    for hook in hooks:
+        hook.remove()
+
+    n = len(V)
+    E = [([False] * n) for i in range(n)]
+    for i in range(n - 1):
+        E[i][i + 1] = True
+    return n, V, E
+
+
+
 def get_graph_resnet(resnet):
     D = dict()
     n = 0

@@ -16,6 +16,8 @@ import random
 import time
 from tensorboardX import SummaryWriter
 import torch.nn as nn
+from gpu_energy_eval import GPUEnergyEvaluator
+
 
 def seed_everything(seed=127):
     random.seed(seed)
@@ -32,6 +34,8 @@ def new_kernels(teacher, record, kernel_n, cons_type, cons_val, alpha=opt.co_alp
     for i in range(kernel_n):
         if cons_type == 'size':
             kernel = Kernel(teacher.rep, 0.0, 1.0)
+        if cons_type == 'energy':
+            kernel = Kernel(teacher.rep, 0.0, 1.7)
         indices = []
         for j in range(record.n):
             if random.random() < gamma:
@@ -88,11 +92,14 @@ def reward(teacher, teacher_acc, students, dataset, objective, cons_type, cons_v
     students_best, students_acc = tr.train_model_search(teacher, students, dataset)
     rs = []
     cs = []
+    evaluator = GPUEnergyEvaluator(gpuid=0, watts_offset=False)
     for j in range(n):
         s = 1.0 * students_best[j].param_n() / teacher.param_n()
         a = 1.0 * students_acc[j] / teacher_acc
-        l=0
-        e=0
+
+        evaluator.start()
+        l = tr.test_model_latency(students_best[j], dataset)
+        e = evaluator.end()
         r = 0
         if objective == 'accuracy':
             r += a
@@ -111,6 +118,8 @@ def reward(teacher, teacher_acc, students, dataset, objective, cons_type, cons_v
                               opt.i * n - n + 1 + j)
         rs.append(r)
         cs.append(s-cons_val)
+        students_best[j].energy = e/10000
+        students_best[j].latency = l
         students_best[j].size = s
         students_best[j].accuracy = students_acc[j]
         students_best[j].reward = r
@@ -155,7 +164,7 @@ def random_compression(teacher, dataset, objective, cons_type, cons_val, num_mod
         print(i)
         action = teacher.comp_action_rand()
         archs.append(teacher.comp_arch(action))
-    students_best, yi, cons = reward(teacher, teacher_acc, archs, dataset, cons_type, cons_val)
+    students_best, yi, cons = reward(teacher, teacher_acc, archs, dataset, objective, cons_type, cons_val)
 
     students_best = [student.to('cpu') for student in students_best]
 
@@ -185,9 +194,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Learnable Embedding Space for Efficient Neural Architecture Compression')
 
     parser.add_argument('--network', type=str, default='resnet34',
-                        help='resnet18/resnet34/vgg19/shufflenet')
+                        help='resnet18/resnet34/vgg19/shufflenet/alexnet')
     parser.add_argument('--dataset', type=str, default='cifar100',
-                        help='cifar10/cifar100')
+                        help='cifar10/cifar100/imagenet')
     parser.add_argument('--suffix', type=str, default='0', help='0/1/2/3...')
     parser.add_argument('--device', type=str, default='cuda', help='cpu/cuda')
     parser.add_argument('--objective', type=str, default='accuracy', help='maximizing objective')
@@ -198,13 +207,15 @@ if __name__ == '__main__':
 
     seed_everything()
 
-    assert args.network in ['resnet18', 'resnet34', 'vgg19', 'shufflenet']
-    assert args.dataset in ['cifar10', 'cifar100']
+    assert args.network in ['resnet18', 'resnet34', 'vgg19', 'shufflenet', 'alexnet']
+    assert args.dataset in ['cifar10', 'cifar100', 'imagenet']
 
     if args.network in ['resnet18', 'resnet34']:
         opt.co_graph_gen = 'get_graph_resnet'
     elif args.network == 'vgg19':
         opt.co_graph_gen = 'get_graph_vgg'
+    elif args.network == 'alexnet':
+        opt.co_graph_gen = 'get_graph_alex'
     elif args.network == 'shufflenet':
         opt.co_graph_gen = 'get_graph_shufflenet'
 
@@ -212,6 +223,8 @@ if __name__ == '__main__':
         opt.dataset = 'CIFAR10Val'
     elif args.dataset == 'cifar100':
         opt.dataset = 'CIFAR100Val'
+    elif args.dataset == 'imagenet':
+        opt.dataset = 'IMAGENETVal'
 
     opt.device = args.device
 

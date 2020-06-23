@@ -68,7 +68,7 @@ if __name__ == '__main__':
         while True:
             with int_lock:
                 cur_watts = float(subprocess.getoutput(cmdline)[:-1])
-            time.sleep(0.001)
+            #time.sleep(0.001)
             time_b = time.time()
             energy_used += max(cur_watts - watts_idle, 0.0) * (time_b - time_a)
             time_a = time_b

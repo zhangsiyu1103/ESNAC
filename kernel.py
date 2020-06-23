@@ -102,7 +102,7 @@ class Kernel(object):
             y_best = self.y_best
             z = (mu - y_best) / sigma
             ei = (mu - y_best) * norm.cdf(z) + sigma * norm.pdf(z)
-            return ei*PoF
+            return ei
 
 
     def kernel_batch_ex(self, t):
