@@ -226,6 +226,9 @@ def get_groups(V):
                     in_layers = []
                     out_layers = []
                     for k in range(n):
+                       # print(k)
+                       # print(V[k].in_shape)
+                       # print(V[k].out_shape)
                         if not vis[k][0] and V[k].in_shape[1] == F:
                             in_layers.append(k)
                             vis[k][0] = True
@@ -250,7 +253,7 @@ def get_plot(name, n, V, E, reduced=False):
     from graphviz import Digraph
     dot = Digraph(name=name)
     for i, v in enumerate(V):
-        node_name = '%d %s %s->%s' % (i, v.base_type, 
+        node_name = '%d %s %s->%s' % (i, v.base_type,
             str(list(v.in_shape)[1:]), str(list(v.out_shape)[1:]))
         colors = ['gray', 'gray', 'gray', 'gray', 'red', 'yellow', 'yellow', 'green', 'cyan', 'blue']
         if v.base_type != 'Identity' or not reduced:

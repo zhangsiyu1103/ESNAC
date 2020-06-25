@@ -9,6 +9,7 @@ import options as opt
 import copy
 import os
 import random
+from models.extension import *
 from math import ceil
 
 class Architecture(nn.Module):
@@ -20,6 +21,13 @@ class Architecture(nn.Module):
         for i in range(n):
             self.add_module('layer_%d' % (i), V[i])
         self.groups = gr.get_groups(V)
+        #for g in self.groups:
+        #    print(g.F)
+        #    print("in layer")
+        #    print(g.in_layers)
+        #    print("out layer")
+        #    print(g.out_layers)
+        #    print("__________________")
         self.E = E
         self.in_links, self.out_links = gr.get_links(E)
         self.init_rep()
@@ -31,6 +39,7 @@ class Architecture(nn.Module):
         y = [None] * self.n
         y[0] = self.get_layer(0)(x)
         for j in range(1, self.n):
+            #print(j)
             x = []
             for i in self.in_links[j]:
                 x.append(y[i])
@@ -44,7 +53,10 @@ class Architecture(nn.Module):
                     y[j] = layer(x)
                 else:
                     x = sum(x)
+                    #print("rep", layer.rep)
+                    #print("previous output: ", y)
                     y[j] = layer(x)
+                    #print(y[j].size())
         return y[-1]
 
     def init_param(self):
@@ -104,18 +116,36 @@ class Architecture(nn.Module):
         out_mat = [([0] * opt.ar_max_layers) for i in range(n)]
         for i in range(n):
             if action[p]:
-                base_mat[i][:16] = [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+                base_mat[i][:17] = [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
             p += 1
+        flat_output = 0
         for g in self.groups:
             F = max(1, int((1.0 - action[p]) * g.F))
+
+
+            for j in g.out_only:
+                if (isinstance(V[j].base, (Flatten)) and
+                    not action[j]):
+                    if flat_output != 0:
+                        F = flat_output
+                    break
+
             for j in g.in_layers:
                 if (isinstance(V[j].base, (nn.Conv2d, nn.Linear)) and
                     not action[j]):
-                    base_mat[j][14] = F
+                    base_mat[j][15] = F
+
+
             for j in g.out_layers:
                 if (isinstance(V[j].base, (nn.Conv2d, nn.Linear)) and
                     not action[j]):
-                    base_mat[j][15] = F
+                    base_mat[j][16] = F
+
+            for j in g.in_only:
+                if (isinstance(V[j].base, (Flatten)) and
+                    not action[j]):
+                    flat_output = int(F*torch.prod(torch.tensor(V[j].in_shape[2:])).item())
+                    break
             p += 1
         for i in range(n):
             for j in range(i + 1, n):
@@ -140,8 +170,16 @@ class Architecture(nn.Module):
             p += 1
         in_shapes = [V[i].in_shape for i in range(n)]
         out_shapes = [V[i].out_shape for i in range(n)]
+        flat_output = 0
         for g in self.groups:
             F = max(1, int((1.0 - action[p]) * g.F))
+
+            for j in g.out_only:
+                if (isinstance(V[j].base, (Flatten)) and
+                    not action[j]):
+                    F = flat_output
+                    break
+
             for j in g.inter:
                 V[j].shrink(F, F)
             for j in g.in_only:
@@ -150,6 +188,13 @@ class Architecture(nn.Module):
             for j in g.out_only:
                 Fi = list(V[j].in_shape)[1]
                 V[j].shrink(Fi, F)
+
+            for j in g.in_only:
+                if (isinstance(V[j].base, (Flatten)) and
+                    not action[j]):
+                    flat_output = int(F*torch.prod(torch.tensor(V[j].in_shape[2:])).item())
+                    break
+
             p += 1
         for i in range(n):
             for j in range(i + 1, n):

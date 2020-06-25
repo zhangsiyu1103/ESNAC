@@ -275,7 +275,6 @@ def train_model_search(teacher_, students_, dataset,
         batch_cnt = 0
         for batch_idx, (inputs, targets) in enumerate(dataset.train_loader):
             inputs = inputs.to(opt.device)
-
             if loss_criterion == 'KD':
                 teacher_outputs = None
                 with torch.no_grad():
@@ -287,6 +286,7 @@ def train_model_search(teacher_, students_, dataset,
                 if lr_schedule == 'linear':
                     schedulers[j].step()
                 optimizers[j].zero_grad()
+                #print(students[j])
                 student_outputs = students[j](inputs)
                 if loss_criterion == 'KD':
                     loss = criterion(student_outputs, teacher_outputs)

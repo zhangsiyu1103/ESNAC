@@ -6,7 +6,7 @@ from models.extension import *
 class Layer(nn.Module):
     supported_base = (Identity, Flatten, Concat, Shuffle,
                       nn.Conv2d, nn.MaxPool2d, nn.AvgPool2d, nn.ReLU,
-                      nn.BatchNorm2d, nn.Linear)
+                      nn.BatchNorm2d, nn.Linear,nn.AdaptiveAvgPool2d)
 
     def __init__(self, base, in_shape=None, out_shape=None):
         super(Layer, self).__init__()
@@ -82,7 +82,7 @@ class Layer(nn.Module):
     def init_rep(self):
         b = self.base
         lt = Layer.supported_base.index(type(b))
-        lr = [0] * 10
+        lr = [0] * 11
         lr[lt] = 1
         k = getattr(b, 'kernel_size', 0)
         k = k[0] if type(k) is tuple else k

@@ -23,9 +23,9 @@ class IMAGENET(object):
                 (0.229, 0.224, 0.225)),
         ])
 
-        train_dataset = torchvision.datasets.ImageFolder(root='/net/ohm/export/iss/szhang/imagenet/train',
+        train_dataset = torchvision.datasets.ImageFolder(root='/workspace/szhang/imagenet/ILSVRC/Data/CLS-LOC/train',
             transform=train_transform)
-        test_dataset = torchvision.datasets.ImageFolder(root='/net/ohm/export/iss/szhang/imagenet/test',
+        test_dataset = torchvision.datasets.ImageFolder(root='/workspace/szhang/imagenet/ILSVRC/Data/CLS-LOC/val',
             transform=test_transform)
 
         self.train_loader = DataLoader(train_dataset, batch_size=batch_size,
@@ -52,10 +52,8 @@ class IMAGENETVal(object):
                 (0.229, 0.224, 0.225)),
         ])
 
-        train_dataset = torchvision.datasets.ImageFolder(root='/net/ohm/export/iss/szhang/imagenet/train',
+        train_dataset = torchvision.datasets.ImageFolder(root='/workspace/szhang/imagenet/ILSVRC/Data/CLS-LOC/train',
             transform=train_transform)
-        test_dataset = torchvision.datasets.ImageFolder(root='/net/ohm/export/iss/szhang/imagenet/val',
-            transform=val_transform)
 
         total_size = len(train_dataset)
         indices = list(range(total_size))
@@ -65,7 +63,7 @@ class IMAGENETVal(object):
 
         self.train_loader = DataLoader(train_dataset, batch_size=batch_size,
             sampler=train_sampler, num_workers=num_workers, pin_memory=True)
-        self.val_loader = DataLoader(test_dataset, batch_size=val_batch_size,
+        self.val_loader = DataLoader(train_dataset, batch_size=val_batch_size,
             sampler=val_sampler, num_workers=num_workers, pin_memory=True)
 
 
