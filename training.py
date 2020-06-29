@@ -81,10 +81,9 @@ def train_model_teacher(model_, dataset, save_path, epochs=400, lr=0.1,
     optimizer = optim.SGD(model.parameters(), lr=lr, momentum=momentum,
                           weight_decay=weight_decay)
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=100, gamma=0.1)
-
     for i in range(1, epochs + 1):
+        print('epochs ', i)
         model.train()
-        scheduler.step()
         loss_total = 0
         batch_cnt = 0
         for batch_idx, (inputs, targets) in enumerate(dataset.train_loader):
@@ -97,6 +96,7 @@ def train_model_teacher(model_, dataset, save_path, epochs=400, lr=0.1,
             optimizer.step()
             loss_total += loss.item()
             batch_cnt += 1
+        scheduler.step()
         opt.writer.add_scalar('training/loss', loss_total / batch_cnt, i)
         acc = test_model(model, dataset)
         opt.writer.add_scalar('training/acc', acc, i)
@@ -137,21 +137,22 @@ def train_model_student(model_, dataset, save_path, idx,
         init_model(model)
 
     for i in range(1, epochs + 1):
+        print('epoch',i)
         model.train()
-        if lr_schedule == 'step':
-            scheduler.step()
+        #if lr_schedule == 'step':
+        #    scheduler.step()
         loss_total = 0
         batch_cnt = 0
         for batch_idx, (inputs, targets) in enumerate(dataset.train_loader):
             inputs = inputs.to(opt.device)
             targets = targets.to(opt.device)
-            if lr_schedule == 'linear':
-                scheduler.step()
-            optimizer.zero_grad()
             outputs = model(inputs)
             loss = criterion(outputs, targets)
             loss.backward()
             optimizer.step()
+            if lr_schedule == 'linear':
+                scheduler.step()
+            optimizer.zero_grad()
             loss_total += loss.item()
             batch_cnt += 1
         opt.writer.add_scalar('training_%d/loss' % (idx), loss_total / batch_cnt, i)

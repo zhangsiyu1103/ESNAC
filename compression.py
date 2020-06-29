@@ -194,7 +194,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Learnable Embedding Space for Efficient Neural Architecture Compression')
 
     parser.add_argument('--network', type=str, default='resnet34',
-                        help='resnet18/resnet34/vgg19/shufflenet/alexnet')
+                        help='resnet18/resnet34/resnet50/resnet101/vgg19/shufflenet/alexnet')
     parser.add_argument('--dataset', type=str, default='cifar100',
                         help='cifar10/cifar100/imagenet')
     parser.add_argument('--suffix', type=str, default='0', help='0/1/2/3...')
@@ -207,10 +207,10 @@ if __name__ == '__main__':
 
     seed_everything()
 
-    assert args.network in ['resnet18', 'resnet34', 'vgg19', 'shufflenet', 'alexnet']
+    assert args.network in ['resnet18', 'resnet34','resnet50','resnet101', 'vgg19', 'shufflenet', 'alexnet']
     assert args.dataset in ['cifar10', 'cifar100', 'imagenet']
 
-    if args.network in ['resnet18', 'resnet34']:
+    if args.network in ['resnet18', 'resnet34','resnet50', 'resnet101']:
         opt.co_graph_gen = 'get_graph_resnet'
     elif args.network == 'vgg19':
         opt.co_graph_gen = 'get_graph_vgg'
