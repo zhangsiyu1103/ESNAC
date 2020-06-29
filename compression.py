@@ -210,8 +210,10 @@ if __name__ == '__main__':
     assert args.network in ['resnet18', 'resnet34','resnet50','resnet101', 'vgg19', 'shufflenet', 'alexnet']
     assert args.dataset in ['cifar10', 'cifar100', 'imagenet']
 
-    if args.network in ['resnet18', 'resnet34','resnet50', 'resnet101']:
+    if args.network in ['resnet18', 'resnet34', 'resnet50', 'resnet101']:
         opt.co_graph_gen = 'get_graph_resnet'
+    #elif args.network in ['resnet50', 'resnet101']:
+    #    opt.co_graph_gen = 'get_graph_long_resnet'
     elif args.network == 'vgg19':
         opt.co_graph_gen = 'get_graph_vgg'
     elif args.network == 'alexnet':

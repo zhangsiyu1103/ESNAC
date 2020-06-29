@@ -52,12 +52,14 @@ class Bottleneck(nn.Module):
         self.downsample = downsample
         width = int(planes * (base_width/64.))*groups
         self.conv1 = conv1x1(inplanes, width)
+        self.relu1 = nn.ReLU(inplace = True)
         self.bn1 = nn.BatchNorm2d(width)
         self.conv2 = conv3x3(width, width, stride)
         self.bn2 = nn.BatchNorm2d(width)
+        self.relu2 = nn.ReLU(inplace = True)
         self.conv3 = conv1x1(width, planes*self.expansion)
         self.bn3 = nn.BatchNorm2d(planes * self.expansion)
-        self.relu = nn.ReLU(inplace = True)
+        self.relu3 = nn.ReLU(inplace = True)
         self.stride = stride
 
     def forward(self, x):
@@ -65,11 +67,11 @@ class Bottleneck(nn.Module):
 
         out = self.conv1(x)
         out = self.bn1(out)
-        out = self.relu(out)
+        out = self.relu1(out)
 
         out = self.conv2(out)
         out = self.bn2(out)
-        out = self.relu(out)
+        out = self.relu2(out)
 
         out = self.conv3(out)
         out = self.bn3(out)
@@ -78,7 +80,7 @@ class Bottleneck(nn.Module):
             identity = self.downsample(x)
 
         out += identity
-        out = self.relu(out)
+        out = self.relu3(out)
 
         return out
 
@@ -108,8 +110,7 @@ class ResNetM(nn.Module):
         downsample = None
         if stride != 1 or self.inplanes != planes * block.expansion:
             downsample = nn.Sequential(
-                nn.Conv2d(self.inplanes, planes * block.expansion,
-                          kernel_size=1, stride=stride, bias=False),
+                conv1x1(self.inplanes, planes* block.expansion, stride),
                 nn.BatchNorm2d(planes * block.expansion),
             )
 

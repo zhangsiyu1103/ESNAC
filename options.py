@@ -15,7 +15,7 @@ bo_cons = False
 ac_search_n = 1000                                          # number of randomly sampled architectures when optimizing acquisition function (see 3.2)
 
 # architecture.py
-ar_max_layers = 128                                         # maximum number of layers of the original architecture
+ar_max_layers = 512                                         # maximum number of layers of the original architecture
 ar_channel_mul = 2                                          # numbers of channels in layers should be divisible by this parameter
                                                             # necessary for ShuffleNet which has group conv, not used in VGG/ResNet
 # hyper-params for random sampling in search space (see 3.2 & 6.5)

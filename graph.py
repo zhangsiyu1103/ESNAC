@@ -118,12 +118,107 @@ def get_graph_resnet(resnet):
             src = src_
             dst = []
 
+        if isinstance(module, models.Bottleneck):
+            chain = [module.conv1, module.bn1, module.relu1,
+                     module.conv2, module.bn2, module.relu2,
+                     module.conv3, module.bn3, module.relu3]
+            add_chain(chain)
+            dst = [module.conv1]
+            src_ = [module.relu3]
+
+            if module.downsample is not None:
+                chain = list(module.downsample.children())
+                add_chain(chain)
+                dst.append(chain[0])
+                add_edge(chain[-1], module.relu3)
+            else:
+                dst.append(module.relu3)
+
+            for s in src:
+                for d in dst:
+                    add_edge(s, d)
+            src = src_
+            dst = []
     chain = [resnet.avgpool, resnet.flatten, resnet.fc]
     for s in src:
         add_edge(s, chain[0])
     add_chain(chain)
 
     return n, V, E
+
+
+def get_graph_long_resnet(resnet):
+    D = dict()
+    n = 0
+    V = []
+    E = [[]]
+
+    def record_hook(module, input, output):
+        key = id(module)
+        if key not in D:
+            D[key] = len(V)
+            V.append(Layer(module, input[0].shape, output.shape))
+
+    def add_edge(src, dst):
+        i = D[id(src)]
+        j = D[id(dst)]
+        E[i][j] = True
+
+    def add_chain(ls):
+        for i in range(len(ls) - 1):
+            add_edge(ls[i], ls[i + 1])
+
+    hooks = []
+    for module in resnet.modules():
+        if isinstance(module, Layer.supported_base):
+            hooks.append(module.register_forward_hook(record_hook))
+    input = torch.rand(1, 3, 32, 32, device=opt.device)
+    output = resnet(input)
+    for hook in hooks:
+        hook.remove()
+
+    n = len(V)
+    E = [([False] * n) for i in range(n)]
+
+    chain = [resnet.conv1, resnet.bn1, resnet.relu1]
+    add_chain(chain)
+
+    src = [resnet.relu1]
+    for module in resnet.modules():
+        if isinstance(module, models.Bottleneck):
+            chain = [module.conv1, module.bn1, module.relu1,
+                     module.conv2, module.bn2, module.relu2,
+                     module.conv3, module.bn3, module.relu3]
+            add_chain(chain)
+            dst = [module.conv1]
+            src_ = [module.relu3]
+
+            if module.downsample is not None:
+                chain = list(module.downsample.children())
+                add_chain(chain)
+                dst.append(chain[0])
+                add_edge(chain[-1], module.relu3)
+            else:
+                dst.append(module.relu3)
+
+            for s in src:
+                for d in dst:
+                    add_edge(s, d)
+            src = src_
+            dst = []
+
+    chain = [resnet.avgpool, resnet.flatten, resnet.fc]
+    for s in src:
+        add_edge(s, chain[0])
+    add_chain(chain)
+
+    return n, V, E
+
+
+
+
+
+
 
 def get_graph_shufflenet(shufflenet):
     D = dict()

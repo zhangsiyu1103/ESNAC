@@ -6,7 +6,7 @@ from models.extension import *
 class Layer(nn.Module):
     supported_base = (Identity, Flatten, Concat, Shuffle,
                       nn.Conv2d, nn.MaxPool2d, nn.AvgPool2d, nn.ReLU,
-                      nn.BatchNorm2d, nn.Linear,nn.AdaptiveAvgPool2d)
+                      nn.BatchNorm2d, nn.Linear, nn.AdaptiveAvgPool2d)
 
     def __init__(self, base, in_shape=None, out_shape=None):
         super(Layer, self).__init__()
