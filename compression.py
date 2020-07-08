@@ -207,14 +207,14 @@ if __name__ == '__main__':
 
     seed_everything()
 
-    assert args.network in ['resnet18', 'resnet34','resnet50','resnet101', 'vgg19', 'shufflenet', 'alexnet']
-    assert args.dataset in ['cifar10', 'cifar100', 'imagenet']
+    assert args.network in ['resnet18', 'resnet34','resnet50','resnet101', 'vgg19', 'shufflenet', 'alexnet', 'sample']
+    assert args.dataset in ['cifar10', 'cifar100', 'imagenet',  'artificial']
 
     if args.network in ['resnet18', 'resnet34', 'resnet50', 'resnet101']:
         opt.co_graph_gen = 'get_graph_resnet'
     #elif args.network in ['resnet50', 'resnet101']:
     #    opt.co_graph_gen = 'get_graph_long_resnet'
-    elif args.network == 'vgg19':
+    elif args.network in ['vgg19', 'sample']:
         opt.co_graph_gen = 'get_graph_vgg'
     elif args.network == 'alexnet':
         opt.co_graph_gen = 'get_graph_alex'
@@ -227,6 +227,8 @@ if __name__ == '__main__':
         opt.dataset = 'CIFAR100Val'
     elif args.dataset == 'imagenet':
         opt.dataset = 'IMAGENETVal'
+    elif args.dataset == 'artificial':
+        opt.dataset = 'Artificial'
 
     opt.device = args.device
 
@@ -242,7 +244,7 @@ if __name__ == '__main__':
     model = torch.load(opt.model).to(opt.device)
     if args.network == 'alexnet':
         model.flatten = models.Flatten()
-    else:
+    elif args.network != 'sample':
         model.avgpool = nn.AvgPool2d(4, stride=1)
     teacher = Architecture(*(getattr(gr, opt.co_graph_gen)(model)))
     #print(teacher)

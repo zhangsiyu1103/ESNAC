@@ -8,7 +8,7 @@ model = './models/pretrained/resnet34_cifar100.pth'         # pretrained teacher
 savedir = './save/resnet34_cifar100_0'                      # save directory
 writer = None                                               # record writer for tensorboardX
 i = 0                                                       # sample index in search
-bo = True
+bo = False
 bo_cons = False
 
 # acquisition.py
@@ -50,7 +50,7 @@ ke_weight_decay = 5e-4
 # hyper-params for training during *search*
 tr_se_optimization = 'Adam'
 tr_se_epochs = 10
-tr_se_lr = 0.001
+tr_se_lr = 0.01
 tr_se_momentum = 0.9
 tr_se_weight_decay = 5e-4
 tr_se_lr_schedule = None
@@ -58,7 +58,7 @@ tr_se_loss_criterion = 'KD'                                 # 'KD': knowledge di
                                                             # 'CE': cross entropy using original labels
 # hyper-params for *fully* training after search
 tr_fu_optimization = 'SGD'
-tr_fu_epochs = 300
+tr_fu_epochs = 50
 tr_fu_lr = 0.01
 tr_fu_momentum = 0.9
 tr_fu_weight_decay = 5e-4

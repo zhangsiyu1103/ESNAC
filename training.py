@@ -46,6 +46,38 @@ def test_model(model, dataset):
     return acc
 
 
+def test_model_image(model, dataset):
+    model.eval()
+    correct = 0
+    total = 0
+    loader = None
+    if hasattr(dataset, 'test_loader'):
+        loader = dataset.test_loader
+    elif hasattr(dataset, 'val_loader'):
+        loader = dataset.val_loader
+    else:
+        raise NotImplementedError('Unknown dataset!')
+    miss = set()
+    with torch.no_grad():
+        for batch_idx, (inputs, targets) in enumerate(loader):
+            inputs = inputs.to(opt.device)
+            targets = targets.to(opt.device)
+            outputs = model(inputs)
+            _, predicted = outputs.max(1)
+            total += targets.size(0)
+            equal_v = predicted.eq(targets)
+            correct += equal_v.sum().item()
+            j = 0
+            #print(equal_v
+            for i in equal_v:
+                if not i:
+                    miss.add(inputs[j])
+                    #print(inputs[j])
+                j+=1
+    acc = 100.0 * correct / total
+    return acc, miss
+
+
 def test_model_latency(model, dataset):
     model.eval()
     loader = None
