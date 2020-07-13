@@ -17,7 +17,7 @@ import time
 from tensorboardX import SummaryWriter
 import torch.nn as nn
 from gpu_energy_eval import GPUEnergyEvaluator
-
+import test_model
 
 def seed_everything(seed=127):
     random.seed(seed)
@@ -159,12 +159,16 @@ def compression(teacher, dataset, record, objective, cons_type, cons_val, step_n
 
 def random_compression(teacher, dataset, objective, cons_type, cons_val, num_model, best_n = opt.co_best_n):
     teacher_acc = tr.test_model(teacher, dataset)
-    archs = []
-    for i in range(num_model):
-        print(i)
-        action = teacher.comp_action_rand()
-        archs.append(teacher.comp_arch(action))
-    students_best, yi, cons = reward(teacher, teacher_acc, archs, dataset, objective, cons_type, cons_val)
+    students_best = []
+    for i in range(4):
+        archs = []
+        for i in range(num_model//4):
+            print(i)
+            action = teacher.comp_action_rand()
+            #print(action)
+            archs.append(teacher.comp_arch(action))
+        students_best_cur, yi, cons = reward(teacher, teacher_acc, archs, dataset, objective, cons_type, cons_val)
+        students_best.extend(students_best_cur)
 
     students_best = [student.to('cpu') for student in students_best]
 
@@ -183,9 +187,8 @@ def fully_train(teacher, dataset, best_n=opt.co_best_n):
     for i in range(best_n):
         print ('Fully train student architecture %d/%d' %(i+1, best_n))
         model = torch.load('%s/arch_%d.pth' % (opt.savedir, i))
-        tr.train_model_student_kd(teacher, model, dataset,
+        tr.train_model_student(model, dataset,
                                '%s/fully_kd_%d.pth' % (opt.savedir, i), i)
-
 
 
 
@@ -207,14 +210,14 @@ if __name__ == '__main__':
 
     seed_everything()
 
-    assert args.network in ['resnet18', 'resnet34','resnet50','resnet101', 'vgg19', 'shufflenet', 'alexnet', 'sample']
+    assert args.network in ['resnet18', 'resnet34','resnet50','resnet101', 'vgg19', 'shufflenet', 'alexnet', 'sample3']
     assert args.dataset in ['cifar10', 'cifar100', 'imagenet',  'artificial']
 
     if args.network in ['resnet18', 'resnet34', 'resnet50', 'resnet101']:
         opt.co_graph_gen = 'get_graph_resnet'
     #elif args.network in ['resnet50', 'resnet101']:
     #    opt.co_graph_gen = 'get_graph_long_resnet'
-    elif args.network in ['vgg19', 'sample']:
+    elif args.network in ['vgg19', 'sample3']:
         opt.co_graph_gen = 'get_graph_vgg'
     elif args.network == 'alexnet':
         opt.co_graph_gen = 'get_graph_alex'
@@ -244,7 +247,7 @@ if __name__ == '__main__':
     model = torch.load(opt.model).to(opt.device)
     if args.network == 'alexnet':
         model.flatten = models.Flatten()
-    elif args.network != 'sample':
+    elif args.network != 'sample3':
         model.avgpool = nn.AvgPool2d(4, stride=1)
     teacher = Architecture(*(getattr(gr, opt.co_graph_gen)(model)))
     #print(teacher)
@@ -254,4 +257,4 @@ if __name__ == '__main__':
         compression(teacher, dataset, record, args.objective, args.constype, args.consval)
     else:
         random_compression(teacher, dataset, args.objective, args.constype, args.consval, 80)
-    fully_train(teacher, dataset=opt.dataset[:-3])
+    fully_train(teacher, dataset=opt.dataset)

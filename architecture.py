@@ -96,7 +96,7 @@ class Architecture(nn.Module):
             else:
                 action.append(0.0)
         for i in range(len(self.groups)):
-            action.append(random.uniform(*opt.ar_p2))
+            action.append(1.0 - random.random())
         p3 = random.choice(opt.ar_p3)
         for i in range(n):
             for j in range(i + 1, n):
@@ -177,8 +177,11 @@ class Architecture(nn.Module):
             for j in g.out_only:
                 if (isinstance(V[j].base, (Flatten)) and
                     not action[j]):
-                    F = flat_output
-                    break
+                    if j == 0:
+                        F = g.F
+                    else:
+                        F = flat_output
+                        break
 
             for j in g.inter:
                 V[j].shrink(F, F)

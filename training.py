@@ -34,6 +34,8 @@ def test_model(model, dataset):
         loader = dataset.val_loader
     else:
         raise NotImplementedError('Unknown dataset!')
+    #loader = dataset.train_loader
+    #print(len(loader))
     with torch.no_grad():
         for batch_idx, (inputs, targets) in enumerate(loader):
             inputs = inputs.to(opt.device)
@@ -104,13 +106,13 @@ def test_model_latency(model, dataset):
 
 
 
-def train_model_teacher(model_, dataset, save_path, epochs=400, lr=0.1,
+def train_model_teacher(model_, dataset, save_path, epochs=60, lr=0.005,
                         momentum=0.9, weight_decay=5e-4):
     acc_best = 0
     model_best = None
     model = torch.nn.DataParallel(model_.to(opt.device))
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(model.parameters(), lr=lr, momentum=momentum,
+    optimizer = optim.Adam(model.parameters(), lr=lr,
                           weight_decay=weight_decay)
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=100, gamma=0.1)
     for i in range(1, epochs + 1):
@@ -132,6 +134,8 @@ def train_model_teacher(model_, dataset, save_path, epochs=400, lr=0.1,
         opt.writer.add_scalar('training/loss', loss_total / batch_cnt, i)
         acc = test_model(model, dataset)
         opt.writer.add_scalar('training/acc', acc, i)
+        print("loss: ", loss_total/batch_cnt)
+        print("test acc: ", acc)
         if acc > acc_best:
             acc_best = acc
             model.module.acc = acc
@@ -175,21 +179,29 @@ def train_model_student(model_, dataset, save_path, idx,
         #    scheduler.step()
         loss_total = 0
         batch_cnt = 0
+        correct = 0
+        total = 0
         for batch_idx, (inputs, targets) in enumerate(dataset.train_loader):
             inputs = inputs.to(opt.device)
             targets = targets.to(opt.device)
+            optimizer.zero_grad()
             outputs = model(inputs)
+            _, predicted = outputs.max(1)
+            total += targets.size(0)
+            correct += predicted.eq(targets).sum().item()
             loss = criterion(outputs, targets)
             loss.backward()
             optimizer.step()
-            if lr_schedule == 'linear':
-                scheduler.step()
-            optimizer.zero_grad()
+            #if lr_schedule == 'linear':
             loss_total += loss.item()
             batch_cnt += 1
+        print("train acc: ", 100*correct/total)
+        scheduler.step()
         opt.writer.add_scalar('training_%d/loss' % (idx), loss_total / batch_cnt, i)
         acc = test_model(model, dataset)
         opt.writer.add_scalar('training_%d/acc' % (idx), acc, i)
+        print('loss: ', loss_total/batch_cnt)
+        print('acc: ',acc)
         if acc > acc_best:
             acc_best = acc
             model.module.acc = acc
@@ -231,15 +243,14 @@ def train_model_student_kd(teacher_, model_, dataset, save_path, idx,
 
     for i in range(1, epochs + 1):
         model.train()
-        if lr_schedule == 'step':
-            scheduler.step()
+        #if lr_schedule == 'step':
+        #    scheduler.step()
         loss_total = 0
         batch_cnt = 0
         for batch_idx, (inputs, targets) in enumerate(dataset.train_loader):
             teacher_outputs = None
             with torch.no_grad():
                 teacher_outputs = teacher(inputs)
-
             inputs = inputs.to(opt.device)
             targets = targets.to(opt.device)
             optimizer.zero_grad()
@@ -249,13 +260,15 @@ def train_model_student_kd(teacher_, model_, dataset, save_path, idx,
             loss = loss1 + loss2
             loss.backward()
             optimizer.step()
-            if lr_schedule == 'linear':
-                scheduler.step()
+            #if lr_schedule == 'linear':
+            scheduler.step()
             loss_total += loss.item()
             batch_cnt += 1
         opt.writer.add_scalar('training_%d/loss' % (idx), loss_total / batch_cnt, i)
         acc = test_model(model, dataset)
         opt.writer.add_scalar('training_%d/acc' % (idx), acc, i)
+        print('loss: ', loss_total/batch_cnt)
+        print('acc: ',acc)
         if acc > acc_best:
             acc_best = acc
             model.module.acc = acc
@@ -333,6 +346,7 @@ def train_model_search(teacher_, students_, dataset,
             opt.writer.add_scalar('step_%d/sample_%d_loss' % (opt.i, j),
                                    loss_total[j] / batch_cnt, i)
             acc = test_model(students[j], dataset)
+            print("acc"+str(j)+": ", acc)
             opt.writer.add_scalar('step_%d/sample_%d_acc' % (opt.i, j), acc, i)
             if acc > accs_best[j]:
                 accs_best[j] = acc
