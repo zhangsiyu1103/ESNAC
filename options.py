@@ -8,8 +8,8 @@ model = './models/pretrained/resnet34_cifar100.pth'         # pretrained teacher
 savedir = './save/resnet34_cifar100_0'                      # save directory
 writer = None                                               # record writer for tensorboardX
 i = 0                                                       # sample index in search
-bo = False
-bo_cons = False
+bo = True
+bo_cons = True
 
 # acquisition.py
 ac_search_n = 1000                                          # number of randomly sampled architectures when optimizing acquisition function (see 3.2)

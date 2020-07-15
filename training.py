@@ -195,13 +195,13 @@ def train_model_student(model_, dataset, save_path, idx,
             #if lr_schedule == 'linear':
             loss_total += loss.item()
             batch_cnt += 1
-        print("train acc: ", 100*correct/total)
+        #print("train acc: ", 100*correct/total)
         scheduler.step()
         opt.writer.add_scalar('training_%d/loss' % (idx), loss_total / batch_cnt, i)
         acc = test_model(model, dataset)
         opt.writer.add_scalar('training_%d/acc' % (idx), acc, i)
-        print('loss: ', loss_total/batch_cnt)
-        print('acc: ',acc)
+        #print('loss: ', loss_total/batch_cnt)
+        #print('acc: ',acc)
         if acc > acc_best:
             acc_best = acc
             model.module.acc = acc
@@ -267,8 +267,8 @@ def train_model_student_kd(teacher_, model_, dataset, save_path, idx,
         opt.writer.add_scalar('training_%d/loss' % (idx), loss_total / batch_cnt, i)
         acc = test_model(model, dataset)
         opt.writer.add_scalar('training_%d/acc' % (idx), acc, i)
-        print('loss: ', loss_total/batch_cnt)
-        print('acc: ',acc)
+        #print('loss: ', loss_total/batch_cnt)
+        #print('acc: ',acc)
         if acc > acc_best:
             acc_best = acc
             model.module.acc = acc
@@ -346,7 +346,7 @@ def train_model_search(teacher_, students_, dataset,
             opt.writer.add_scalar('step_%d/sample_%d_loss' % (opt.i, j),
                                    loss_total[j] / batch_cnt, i)
             acc = test_model(students[j], dataset)
-            print("acc"+str(j)+": ", acc)
+            #print("acc"+str(j)+": ", acc)
             opt.writer.add_scalar('step_%d/sample_%d_acc' % (opt.i, j), acc, i)
             if acc > accs_best[j]:
                 accs_best[j] = acc

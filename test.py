@@ -13,9 +13,11 @@ import models
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 dataset = getattr(datasets,'Artificial')()
-teacher_model_path = './models/pretrained/sample3_artificial.pth'
-#teacher_model_path = './ground_truth3.pth'
+teacher_model_path = './models/pretrained/sample4_artificial.pth'
+#teacher_model_path = './base/groundtruth4.pth'
 teacher = torch.load(teacher_model_path)
+#teacher = models.GroundTruth4()
+#teacher.load_state_dict(torch.load(teacher_model_path))
 teacher.to(device)
 print(teacher)
 #teacher.avgpool = nn.AvgPool2d(4, stride=1)
@@ -23,12 +25,13 @@ print(teacher)
 #teacher.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
 opt.co_graph_gen = 'get_graph_vgg'
 teacher = Architecture(*(getattr(gr, opt.co_graph_gen)(teacher)))
+print(teacher)
 teacher_params = teacher.param_n()
 full_acc = tr.test_model(teacher,dataset)
 print("teacher model acc: %4.2f" %(full_acc))
-print("teacher params number: ", teacher_params)
+#print("teacher params number: ", teacher_params)
 
-model_path = "save/sample3_artificial_bo_cons_only/fully_kd_"
+model_path = "save/sample4_artificial_random/fully_kd_"
 
 opt.writer = SummaryWriter('./runs/sample0_artificial_random')
 
