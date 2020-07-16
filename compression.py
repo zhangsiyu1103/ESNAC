@@ -109,7 +109,7 @@ def reward(teacher, teacher_acc, students, dataset, objective, cons_type, cons_v
             r += 2 * (cons_val -l)
         elif cons_type == 'energy':
             r += 2 * (cons_val - e)
-        r = a
+        #r = a
         #r = a + 2*(cons_val-s)
         opt.writer.add_scalar('compression/model_size', s,
                               opt.i * n - n + 1 + j)
@@ -211,14 +211,14 @@ if __name__ == '__main__':
 
     seed_everything()
 
-    assert args.network in ['resnet18', 'resnet34','resnet50','resnet101', 'vgg19', 'shufflenet', 'alexnet', 'sample4']
+    assert args.network in ['resnet18', 'resnet34','resnet50','resnet101', 'vgg19', 'shufflenet', 'alexnet', 'sample5']
     assert args.dataset in ['cifar10', 'cifar100', 'imagenet',  'artificial']
 
     if args.network in ['resnet18', 'resnet34', 'resnet50', 'resnet101']:
         opt.co_graph_gen = 'get_graph_resnet'
     #elif args.network in ['resnet50', 'resnet101']:
     #    opt.co_graph_gen = 'get_graph_long_resnet'
-    elif args.network in ['vgg19', 'sample4']:
+    elif args.network in ['vgg19', 'sample5']:
         opt.co_graph_gen = 'get_graph_vgg'
     elif args.network == 'alexnet':
         opt.co_graph_gen = 'get_graph_alex'
@@ -248,7 +248,7 @@ if __name__ == '__main__':
     model = torch.load(opt.model).to(opt.device)
     if args.network == 'alexnet':
         model.flatten = models.Flatten()
-    elif args.network != 'sample4':
+    elif args.network != 'sample5':
         model.avgpool = nn.AvgPool2d(4, stride=1)
     teacher = Architecture(*(getattr(gr, opt.co_graph_gen)(model)))
     #print(teacher)

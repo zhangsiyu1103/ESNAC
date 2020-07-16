@@ -58,7 +58,7 @@ tr_se_loss_criterion = 'KD'                                 # 'KD': knowledge di
                                                             # 'CE': cross entropy using original labels
 # hyper-params for *fully* training after search
 tr_fu_optimization = 'Adam'
-tr_fu_epochs = 100
+tr_fu_epochs = 150
 tr_fu_lr = 0.001
 tr_fu_momentum = 0.9
 tr_fu_weight_decay = 5e-4

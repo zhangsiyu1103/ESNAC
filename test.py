@@ -31,7 +31,7 @@ full_acc = tr.test_model(teacher,dataset)
 print("teacher model acc: %4.2f" %(full_acc))
 #print("teacher params number: ", teacher_params)
 
-model_path = "save/sample4_artificial_random/fully_kd_"
+model_path = "save/sample4_artificial_bo_cons_obj/fully_kd_"
 
 opt.writer = SummaryWriter('./runs/sample0_artificial_random')
 
