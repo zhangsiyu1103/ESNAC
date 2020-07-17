@@ -105,7 +105,6 @@ class GroundTruth3(nn.Module):
         return x
 
 
-
 class GroundTruth4(nn.Module):
 
     def __init__(self, n_classes=10):
@@ -133,6 +132,7 @@ class GroundTruth4(nn.Module):
         return x
 
 
+
 class GroundTruth5(nn.Module):
 
     def __init__(self, n_classes=10):
@@ -154,6 +154,31 @@ class GroundTruth5(nn.Module):
         return x
 
 
+class GroundTruth6(nn.Module):
+
+    def __init__(self, n_classes=10):
+        super(GroundTruth6, self).__init__()
+
+        self.conv = nn.Conv2d(3, 3, kernel_size = 3)
+
+        self.relu1 = nn.ReLU(inplace = True)
+
+        self.flatten = Flatten()
+
+        self.linear1 = nn.Linear(48, 64)
+
+        self.linear2 = nn.Linear(64, n_classes)
+
+        self.relu2 = nn.ReLU(inplace = True)
+
+    def forward(self, x):
+        x = self.conv(x)
+        x = self.relu1(x)
+        x = self.flatten(x)
+        x = self.linear1(x)
+        x = self.relu2(x)
+        x = self.linear2(x)
+        return x
 
 
 class Sample1(nn.Module):
@@ -273,6 +298,8 @@ class Sample4(nn.Module):
         x = self.linear2(x)
         return x
 
+
+
 class Sample5(nn.Module):
 
     def __init__(self, n_classes=10):
@@ -294,6 +321,31 @@ class Sample5(nn.Module):
         return x
 
 
+class Sample6(nn.Module):
+
+    def __init__(self, n_classes=10):
+        super(Sample6, self).__init__()
+
+        self.conv = nn.Conv2d(3, 6, kernel_size = 3)
+
+        self.relu1 = nn.ReLU(inplace = True)
+
+        self.flatten = Flatten()
+
+        self.linear1 = nn.Linear(96, 1960)
+
+        self.linear2 = nn.Linear(1960, n_classes)
+
+        self.relu2 = nn.ReLU(inplace = True)
+
+    def forward(self, x):
+        x = self.conv(x)
+        x = self.relu1(x)
+        x = self.flatten(x)
+        x = self.linear1(x)
+        x = self.relu2(x)
+        x = self.linear2(x)
+        return x
 
 
 def sample0(**kwargs):
@@ -309,7 +361,8 @@ def sample4(**kwargs):
 def sample5(**kwargs):
     return Sample5(**kwargs)
 
-
+def sample6(**kwargs):
+    return Sample6(**kwargs)
 
 def groundtruth(**kwargs):
     return GroundTruth0(**kwargs)
