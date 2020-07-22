@@ -17,7 +17,7 @@ import time
 from tensorboardX import SummaryWriter
 import torch.nn as nn
 from gpu_energy_eval import GPUEnergyEvaluator
-import test_model
+#import test_model
 
 def seed_everything(seed=127):
     random.seed(seed)
@@ -86,43 +86,43 @@ def next_samples(teacher, kernels, kernel_n):
                             time.time() - start_time, opt.i)
         return archs_best, reps_best
 
-def reward(teacher, teacher_acc, students, dataset, objective, cons_type, cons_val):
+def reward(teacher, teacher_loss, students, dataset, objective, cons_type, cons_val):
     start_time = time.time()
     n = len(students)
-    students_best, students_acc = tr.train_model_search(teacher, students, dataset)
+    students_best, students_loss = tr.train_model_search_reg(teacher, students, dataset)
     rs = []
     cs = []
-    evaluator = GPUEnergyEvaluator(gpuid=0, watts_offset=False)
+    #evaluator = GPUEnergyEvaluator(gpuid=0, watts_offset=False)
     for j in range(n):
         s = 1.0 * students_best[j].param_n() / teacher.param_n()
-        a = 1.0 * students_acc[j] / teacher_acc
+        a = 1.0 * teacher_loss/students_loss[j]
 
-        evaluator.start()
-        l = tr.test_model_latency(students_best[j], dataset)
-        e = evaluator.end()
+        #evaluator.start()
+        l = tr.test_model_regression(students_best[j], dataset)
+        #e = evaluator.end()
         r = 0
         if objective == 'accuracy':
             r += a
         if cons_type == 'size':
             r += 2 * (cons_val -s)
-        elif cons_type == 'latency':
-            r += 2 * (cons_val -l)
-        elif cons_type == 'energy':
-            r += 2 * (cons_val - e)
-        r = a
+        #elif cons_type == 'latency':
+        #    r += 2 * (cons_val -l)
+        #elif cons_type == 'energy':
+        #    r += 2 * (cons_val - e)
+        #r = a
         #r = a + 2*(cons_val-s)
-        opt.writer.add_scalar('compression/model_size', s,
-                              opt.i * n - n + 1 + j)
-        opt.writer.add_scalar('compression/accuracy_score', a,
-                              opt.i * n - n + 1 + j)
-        opt.writer.add_scalar('compression/reward', r,
-                              opt.i * n - n + 1 + j)
+        #opt.writer.add_scalar('compression/model_size', s,
+        #                      opt.i * n - n + 1 + j)
+        #opt.writer.add_scalar('compression/accuracy_score', a,
+        #                      opt.i * n - n + 1 + j)
+        #opt.writer.add_scalar('compression/reward', r,
+        #                      opt.i * n - n + 1 + j)
         rs.append(r)
         cs.append(s-cons_val)
-        students_best[j].energy = e/10000
-        students_best[j].latency = l
+        #students_best[j].energy = e/10000
+        #students_best[j].latency = l
         students_best[j].size = s
-        students_best[j].accuracy = students_acc[j]
+        students_best[j].loss = students_loss[j]
         students_best[j].reward = r
     opt.writer.add_scalar('compression/evaluating_time',
                           time.time() - start_time, opt.i)
@@ -132,7 +132,7 @@ def reward(teacher, teacher_acc, students, dataset, objective, cons_type, cons_v
 def compression(teacher, dataset, record, objective, cons_type, cons_val, step_n=opt.co_step_n,
                 kernel_n=opt.co_kernel_n, best_n=opt.co_best_n):
 
-    teacher_acc = tr.test_model(teacher, dataset)
+    teacher_loss = tr.test_model_regression(teacher, dataset)
     archs_best = []
     for i in range(1, step_n + 1):
         print ('Search step %d/%d' %(i, step_n))
@@ -140,7 +140,7 @@ def compression(teacher, dataset, record, objective, cons_type, cons_val, step_n
         opt.i = i
         kernels = new_kernels(teacher, record, kernel_n, cons_type, cons_val)
         students_best, xi = next_samples(teacher, kernels, kernel_n)
-        students_best, yi, cons = reward(teacher, teacher_acc, students_best, dataset, objective, cons_type, cons_val)
+        students_best, yi, cons = reward(teacher, teacher_loss, students_best, dataset, objective, cons_type, cons_val)
         for j in range(kernel_n):
             record.add_cons_sample(xi[j], yi[j], cons[j])
             if yi[j] == record.reward_best:
@@ -150,7 +150,7 @@ def compression(teacher, dataset, record, objective, cons_type, cons_val, step_n
         #filter out unconstraint
         archs_best = list(filter(lambda x:getattr(x, cons_type) <= cons_val, archs_best))
 
-        archs_best.sort(key=attrgetter(objective), reverse=True)
+        archs_best.sort(key=attrgetter(objective))
         archs_best = archs_best[:best_n]
         for j, arch in enumerate(archs_best):
             arch.save('%s/arch_%d.pth' % (opt.savedir, j))
@@ -159,7 +159,7 @@ def compression(teacher, dataset, record, objective, cons_type, cons_val, step_n
                               time.time() - start_time, i)
 
 def random_compression(teacher, dataset, objective, cons_type, cons_val, num_model, best_n = opt.co_best_n):
-    teacher_acc = tr.test_model(teacher, dataset)
+    teacher_loss = tr.test_model_regression(teacher, dataset)
     students_best = []
     for i in range(4):
         archs = []
@@ -168,7 +168,7 @@ def random_compression(teacher, dataset, objective, cons_type, cons_val, num_mod
             action = teacher.comp_action_rand()
             #print(action)
             archs.append(teacher.comp_arch(action))
-        students_best_cur, yi, cons = reward(teacher, teacher_acc, archs, dataset, objective, cons_type, cons_val)
+        students_best_cur, yi, cons = reward(teacher, teacher_loss, archs, dataset, objective, cons_type, cons_val)
         students_best.extend(students_best_cur)
 
     students_best = [student.to('cpu') for student in students_best]
@@ -188,7 +188,7 @@ def fully_train(teacher, dataset, best_n=opt.co_best_n):
     for i in range(best_n):
         print ('Fully train student architecture %d/%d' %(i+1, best_n))
         model = torch.load('%s/arch_%d.pth' % (opt.savedir, i))
-        tr.train_model_student(model, dataset,
+        tr.train_model_student_regresison(model, dataset,
                                '%s/fully_kd_%d.pth' % (opt.savedir, i), i)
 
 
@@ -203,7 +203,7 @@ if __name__ == '__main__':
                         help='cifar10/cifar100/imagenet')
     parser.add_argument('--suffix', type=str, default='0', help='0/1/2/3...')
     parser.add_argument('--device', type=str, default='cuda', help='cpu/cuda')
-    parser.add_argument('--objective', type=str, default='accuracy', help='maximizing objective')
+    parser.add_argument('--objective', type=str, default='loss', help='maximizing objective')
     parser.add_argument('--constype', type=str, default='size', help='size/energy/latency')
     parser.add_argument('--consval', type=float, default=0.1, help='different value range for different constraint')
 
@@ -211,14 +211,14 @@ if __name__ == '__main__':
 
     seed_everything()
 
-    assert args.network in ['resnet18', 'resnet34','resnet50','resnet101', 'vgg19', 'shufflenet', 'alexnet', 'sample6']
+    assert args.network in ['resnet18', 'resnet34','resnet50','resnet101', 'vgg19', 'shufflenet', 'alexnet', 'sample7']
     assert args.dataset in ['cifar10', 'cifar100', 'imagenet',  'artificial']
 
     if args.network in ['resnet18', 'resnet34', 'resnet50', 'resnet101']:
         opt.co_graph_gen = 'get_graph_resnet'
     #elif args.network in ['resnet50', 'resnet101']:
     #    opt.co_graph_gen = 'get_graph_long_resnet'
-    elif args.network in ['vgg19', 'sample6']:
+    elif args.network in ['vgg19', 'sample7']:
         opt.co_graph_gen = 'get_graph_vgg'
     elif args.network == 'alexnet':
         opt.co_graph_gen = 'get_graph_alex'
@@ -248,7 +248,7 @@ if __name__ == '__main__':
     model = torch.load(opt.model).to(opt.device)
     if args.network == 'alexnet':
         model.flatten = models.Flatten()
-    elif args.network != 'sample6':
+    elif args.network != 'sample7':
         model.avgpool = nn.AvgPool2d(4, stride=1)
     teacher = Architecture(*(getattr(gr, opt.co_graph_gen)(model)))
     #print(teacher)

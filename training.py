@@ -6,6 +6,7 @@ import torch.backends.cudnn as cudnn
 import options as opt
 import os
 import time
+import sys
 import numpy as np
 
 def init_model(model):
@@ -46,6 +47,36 @@ def test_model(model, dataset):
             correct += predicted.eq(targets).sum().item()
     acc = 100.0 * correct / total
     return acc
+
+
+def test_model_regression(model, dataset):
+    model.eval()
+    loader = None
+    loss_total = 0
+    batch_cnt = 0
+    criterion = nn.MSELoss()
+    if hasattr(dataset, 'test_loader'):
+        loader = dataset.test_loader
+    elif hasattr(dataset, 'val_loader'):
+        loader = dataset.val_loader
+    else:
+        raise NotImplementedError('Unknown dataset!')
+    #loader = dataset.train_loader
+    #print(len(loader))
+    with torch.no_grad():
+        for batch_idx, (inputs, targets) in enumerate(loader):
+            inputs = inputs.to(opt.device)
+            targets = targets.to(opt.device)
+            outputs = model(inputs)
+            loss = criterion(outputs,targets)
+            loss_total+=loss.item()
+            #batch_cnt += 1
+            #_, predicted = outputs.max(1)
+            #total += targets.size(0)
+            #correct += predicted.eq(targets).sum().item()
+    #acc = 100.0 * correct / total
+    return loss_total
+
 
 
 def test_model_image(model, dataset):
@@ -143,6 +174,7 @@ def train_model_teacher(model_, dataset, save_path, epochs=60, lr=0.005,
             torch.save(model_best, save_path)
     return model_best, acc_best
 
+
 def train_model_student(model_, dataset, save_path, idx,
                         optimization=opt.tr_fu_optimization,
                         epochs=opt.tr_fu_epochs, lr=opt.tr_fu_lr,
@@ -195,19 +227,88 @@ def train_model_student(model_, dataset, save_path, idx,
             #if lr_schedule == 'linear':
             loss_total += loss.item()
             batch_cnt += 1
-        #print("train acc: ", 100*correct/total)
+        print("train acc: ", 100*correct/total)
         scheduler.step()
         opt.writer.add_scalar('training_%d/loss' % (idx), loss_total / batch_cnt, i)
         acc = test_model(model, dataset)
         opt.writer.add_scalar('training_%d/acc' % (idx), acc, i)
-        #print('loss: ', loss_total/batch_cnt)
-        #print('acc: ',acc)
+        print('loss: ', loss_total/batch_cnt)
+        print('acc: ',acc)
         if acc > acc_best:
             acc_best = acc
             model.module.acc = acc
             model_best = model.module
             torch.save(model_best, save_path)
     return model_best, acc_best
+
+
+
+def train_model_student_regression(model_, dataset, save_path, idx,
+                        optimization=opt.tr_fu_optimization,
+                        epochs=opt.tr_fu_epochs, lr=opt.tr_fu_lr,
+                        momentum=opt.tr_fu_momentum,
+                        weight_decay=opt.tr_fu_weight_decay,
+                        lr_schedule=opt.tr_fu_lr_schedule,
+                        from_scratch=opt.tr_fu_from_scratch):
+    loss_best = sys.maxsize
+    model_best = None
+    model = torch.nn.DataParallel(model_.to(opt.device))
+    criterion = nn.MSELoss()
+
+    if optimization == 'SGD':
+        optimizer = optim.SGD(model.parameters(), lr=lr, momentum=momentum,
+                              weight_decay=weight_decay)
+    elif optimization == 'Adam':
+        optimizer = optim.Adam(model.parameters(), lr=lr,
+                              weight_decay=weight_decay)
+    if lr_schedule == 'step':
+        scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=100,
+                                              gamma=0.1)
+    elif lr_schedule == 'linear':
+        batch_cnt = len(dataset.train_loader)
+        n_total_exp = epochs * batch_cnt
+        lr_lambda = lambda n_exp_seen: 1 - n_exp_seen/n_total_exp
+        scheduler = optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lr_lambda)
+    if from_scratch:
+        init_model(model)
+
+    for i in range(1, epochs + 1):
+        print('epoch',i)
+        model.train()
+        #if lr_schedule == 'step':
+        #    scheduler.step()
+        loss_total = 0
+        batch_cnt = 0
+        correct = 0
+        total = 0
+        for batch_idx, (inputs, targets) in enumerate(dataset.train_loader):
+            inputs = inputs.to(opt.device)
+            targets = targets.to(opt.device)
+            optimizer.zero_grad()
+            outputs = model(inputs)
+            #i_, predicted = outputs.max(1)
+            #total += targets.size(0)
+            #correct += predicted.eq(targets).sum().item()
+            loss = criterion(outputs, targets)
+            loss.backward()
+            optimizer.step()
+            #if lr_schedule == 'linear':
+            loss_total += loss.item()
+            batch_cnt += 1
+        #print("train acc: ", 100*correct/total)
+        scheduler.step()
+        opt.writer.add_scalar('training_%d/loss' % (idx), loss_total , i)
+        test_loss = test_model_regression(model, dataset)
+        #opt.writer.add_scalar('training_%d/acc' % (idx), acc, i)
+        print('train loss: ', loss_total)
+        print('test loss: ',test_loss)
+        if test_loss < loss_best:
+            loss_best = test_loss
+            model.module.loss = test_loss
+            model_best = model.module
+            torch.save(model_best, save_path)
+    return model_best, loss_best
+
 
 
 def train_model_student_kd(teacher_, model_, dataset, save_path, idx,
@@ -275,6 +376,79 @@ def train_model_student_kd(teacher_, model_, dataset, save_path, idx,
             model_best = model.module
             torch.save(model_best, save_path)
     return model_best, acc_best
+
+
+
+def train_model_student_kd_reg(teacher_, model_, dataset, save_path, idx,
+                        optimization=opt.tr_fu_optimization,
+                        epochs=opt.tr_fu_epochs, lr=opt.tr_fu_lr,
+                        momentum=opt.tr_fu_momentum,
+                        weight_decay=opt.tr_fu_weight_decay,
+                        lr_schedule=opt.tr_fu_lr_schedule,
+                        from_scratch=opt.tr_fu_from_scratch):
+    loss_best = sys.maxsize
+    model_best = None
+    model = torch.nn.DataParallel(model_.to(opt.device))
+    teacher = torch.nn.DataParallel(teacher_.to(opt.device))
+    criterion = nn.MSELoss()
+
+    if optimization == 'SGD':
+        optimizer = optim.SGD(model.parameters(), lr=lr, momentum=momentum,
+                              weight_decay=weight_decay)
+    elif optimization == 'Adam':
+        optimizer = optim.Adam(model.parameters(), lr=lr,
+                              weight_decay=weight_decay)
+    if lr_schedule == 'step':
+        scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=100,
+                                              gamma=0.1)
+    elif lr_schedule == 'linear':
+        batch_cnt = len(dataset.train_loader)
+        n_total_exp = epochs * batch_cnt
+        lr_lambda = lambda n_exp_seen: 1 - n_exp_seen/n_total_exp
+        scheduler = optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lr_lambda)
+    if from_scratch:
+        init_model(model)
+
+    for i in range(1, epochs + 1):
+        model.train()
+        #if lr_schedule == 'step':
+        #    scheduler.step()
+        loss_total = 0
+        #batch_cnt = 0
+        for batch_idx, (inputs, targets) in enumerate(dataset.train_loader):
+            teacher_outputs = None
+            with torch.no_grad():
+                teacher_outputs = teacher(inputs)
+            inputs = inputs.to(opt.device)
+            targets = targets.to(opt.device)
+            optimizer.zero_grad()
+            outputs = model(inputs)
+            loss1 = criterion(outputs, targets)
+            loss2 = criterion(outputs, teacher_outputs)
+            loss = loss1 + loss2
+            loss.backward()
+            optimizer.step()
+            #if lr_schedule == 'linear':
+            scheduler.step()
+            loss_total += loss.item()
+            #batch_cnt += 1
+        opt.writer.add_scalar('training_%d/loss' % (idx), loss_total, i)
+        test_loss = test_model_regression(model, dataset)
+        #opt.writer.add_scalar('training_%d/acc' % (idx), acc, i)
+        #print('loss: ', loss_total/batch_cnt)
+        #print('acc: ',acc)
+        if test_loss > loss_best:
+            loss_best = test_loss
+            model.module.loss = test_loss
+            model_best = model.module
+            torch.save(model_best, save_path)
+    return model_best, loss_best
+
+
+
+
+
+
 
 
 
@@ -352,3 +526,88 @@ def train_model_search(teacher_, students_, dataset,
                 accs_best[j] = acc
                 students_best[j] = students[j].module
     return students_best, accs_best
+
+
+
+
+
+
+
+def train_model_search_reg(teacher_, students_, dataset,
+                       optimization=opt.tr_se_optimization,
+                       epochs=opt.tr_se_epochs, lr=opt.tr_se_lr,
+                       momentum=opt.tr_se_momentum,
+                       weight_decay=opt.tr_se_weight_decay,
+                       lr_schedule=opt.tr_se_lr_schedule,
+                       loss_criterion=opt.tr_se_loss_criterion):
+    n = len(students_)
+    loss_best = [sys.maxsize] * n
+    students_best = [None] * n
+    teacher = torch.nn.DataParallel(teacher_.to(opt.device))
+    students = [None] * n
+
+    for j in range(n):
+        students[j] = torch.nn.DataParallel(students_[j].to(opt.device))
+    if loss_criterion == 'KD' or loss_criterion == 'l2':
+        criterion = nn.MSELoss()
+    elif loss_criterion == 'CE':
+        criterion = nn.CrossEntropyLoss()
+    if optimization == 'SGD':
+        optimizers = [optim.SGD(students[j].parameters(), lr=lr,
+                                momentum=momentum, weight_decay=weight_decay)
+                        for j in range(n)]
+    elif optimization == 'Adam':
+        optimizers = [optim.Adam(students[j].parameters(), lr=lr,
+                                 weight_decay=weight_decay) for j in range(n)]
+    if lr_schedule == 'linear':
+        batch_cnt = len(dataset.train_loader)
+        n_total_exp = epochs * batch_cnt
+        lr_lambda = lambda n_exp_seen: 1 - n_exp_seen/n_total_exp
+        schedulers = [optim.lr_scheduler.LambdaLR(optimizers[j],
+                                                  lr_lambda=lr_lambda)
+                        for j in range(n)]
+
+    for i in range(1, epochs + 1):
+        print("epochs:",i)
+        teacher.eval()
+        for j in range(n):
+            students[j].train()
+        loss_total = [0.0] * n
+        batch_cnt = 0
+        for batch_idx, (inputs, targets) in enumerate(dataset.train_loader):
+            inputs = inputs.to(opt.device)
+            targets = targets.to(opt.device)
+            if loss_criterion == 'KD':
+                teacher_outputs = None
+                with torch.no_grad():
+                    teacher_outputs = teacher(inputs)
+            elif loss_criterion == 'CE':
+                targets = targets.to(opt.device)
+
+            for j in range(n):
+                if lr_schedule == 'linear':
+                    schedulers[j].step()
+                optimizers[j].zero_grad()
+                #print(students[j])
+                student_outputs = students[j](inputs)
+                if loss_criterion == 'KD':
+                    loss1 = criterion(student_outputs, teacher_outputs)
+                    loss2 = criterion(student_outputs, targets)
+                    loss = loss1+loss2
+                elif loss_criterion == 'CE':
+                    loss = criterion(student_outputs, targets)
+                loss.backward()
+                optimizers[j].step()
+                loss_total[j] += loss.item()
+            batch_cnt += 1
+        for j in range(n):
+            opt.writer.add_scalar('step_%d/sample_%d_loss' % (opt.i, j),
+                                   loss_total[j], i)
+            test_loss = test_model_regression(students[j], dataset)
+            #print("loss"+str(j)+": ", test_loss)
+            #opt.writer.add_scalar('step_%d/sample_%d_acc' % (opt.i, j), acc, i)
+            if test_loss < loss_best[j]:
+                loss_best[j] = test_loss
+                students_best[j] = students[j].module
+    return students_best, loss_best
+

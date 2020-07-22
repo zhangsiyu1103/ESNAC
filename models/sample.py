@@ -154,6 +154,8 @@ class GroundTruth5(nn.Module):
         return x
 
 
+
+
 class GroundTruth6(nn.Module):
 
     def __init__(self, n_classes=10):
@@ -179,6 +181,29 @@ class GroundTruth6(nn.Module):
         x = self.relu2(x)
         x = self.linear2(x)
         return x
+
+
+
+class GroundTruth7(nn.Module):
+
+    def __init__(self, n_classes=1):
+        super(GroundTruth7, self).__init__()
+
+        self.flatten = Flatten()
+
+        self.linear1 = nn.Linear(108, 48)
+
+        self.linear2 = nn.Linear(48, n_classes)
+
+        self.relu1 = nn.ReLU(inplace = True)
+
+    def forward(self, x):
+        x = self.flatten(x)
+        x = self.linear1(x)
+        x = self.relu1(x)
+        x = self.linear2(x)
+        return x
+
 
 
 class Sample1(nn.Module):
@@ -321,6 +346,7 @@ class Sample5(nn.Module):
         return x
 
 
+
 class Sample6(nn.Module):
 
     def __init__(self, n_classes=10):
@@ -348,6 +374,29 @@ class Sample6(nn.Module):
         return x
 
 
+class Sample7(nn.Module):
+
+    def __init__(self, n_classes=1):
+        super(Sample7, self).__init__()
+
+        self.flatten = Flatten()
+
+        self.linear1 = nn.Linear(108, 2400)
+
+        self.linear2 = nn.Linear(2400, n_classes)
+
+        self.relu1 = nn.ReLU(inplace = True)
+
+    def forward(self, x):
+        x = self.flatten(x)
+        x = self.linear1(x)
+        x = self.relu1(x)
+        x = self.linear2(x)
+        return x
+
+
+
+
 def sample0(**kwargs):
     return Sample0(**kwargs)
 
@@ -364,6 +413,8 @@ def sample5(**kwargs):
 def sample6(**kwargs):
     return Sample6(**kwargs)
 
+def sample7(**kwargs):
+    return Sample7(**kwargs)
 def groundtruth(**kwargs):
     return GroundTruth0(**kwargs)
 

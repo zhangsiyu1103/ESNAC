@@ -30,9 +30,9 @@ def seed_everything(seed=127):
 
 def fully_train(model, dataset):
     dataset = getattr(datasets, dataset)()
-    model, acc=tr.train_model_student(model, dataset,
-                        '%s/sample6_artificial.pth' % (opt.savedir), 0)
-    print("accuray: ",acc)
+    model, loss=tr.train_model_student_regression(model, dataset,
+                        '%s/sample7_artificial.pth' % (opt.savedir), 0)
+    print("loss: ",loss)
 
 
 if __name__ == '__main__':
