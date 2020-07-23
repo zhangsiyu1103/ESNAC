@@ -105,6 +105,7 @@ def reward(teacher, teacher_loss, students, dataset, objective, cons_type, cons_
             r += a
         if cons_type == 'size':
             r += 2 * (cons_val -s)
+        r = a
         #elif cons_type == 'latency':
         #    r += 2 * (cons_val -l)
         #elif cons_type == 'energy':
@@ -188,7 +189,7 @@ def fully_train(teacher, dataset, best_n=opt.co_best_n):
     for i in range(best_n):
         print ('Fully train student architecture %d/%d' %(i+1, best_n))
         model = torch.load('%s/arch_%d.pth' % (opt.savedir, i))
-        tr.train_model_student_regresison(model, dataset,
+        tr.train_model_student_regression(model, dataset,
                                '%s/fully_kd_%d.pth' % (opt.savedir, i), i)
 
 
