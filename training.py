@@ -35,8 +35,29 @@ def test_model(model, dataset):
         loader = dataset.val_loader
     else:
         raise NotImplementedError('Unknown dataset!')
-    #loader = dataset.train_loader
+    train_loader = dataset.train_loader
+    train_correct = 0
+    train_total = 0
+    best_train_acc = 0
     #print(len(loader))
+    with torch.no_grad():
+        for batch_idx, (inputs, targets) in enumerate(train_loader):
+            inputs = inputs.to(opt.device)
+            targets = targets.to(opt.device)
+            outputs = model(inputs)
+            _, predicted = outputs.max(1)
+            train_total += targets.size(0)
+            train_correct += predicted.eq(targets).sum().item()
+    train_acc = 100.0 * train_correct / train_total
+    #print("train acc:", train_acc)
+
+    #if train_acc > best_train_acc:
+    #    best_train_acc = train_acc
+    #    model_best = model.module
+    #    torch.save(model_best, 'temp_save/temp.pth')
+    #if train_acc == 100:
+    #    torch.save(model.mudule, 'temp_save/base.pth')
+
     with torch.no_grad():
         for batch_idx, (inputs, targets) in enumerate(loader):
             inputs = inputs.to(opt.device)
@@ -63,6 +84,21 @@ def test_model_regression(model, dataset):
         raise NotImplementedError('Unknown dataset!')
     #loader = dataset.train_loader
     #print(len(loader))
+    train_loader = dataset.train_loader
+    train_loss_total = 0
+    train_batch_cnt = 0
+    #print(len(loader))
+    with torch.no_grad():
+        for batch_idx, (inputs, targets) in enumerate(train_loader):
+            inputs = inputs.to(opt.device)
+            targets = targets.to(opt.device)
+            outputs = model(inputs)
+            train_loss = criterion(outputs,targets)
+            train_loss_total+=train_loss.item()
+            train_batch_cnt += 1
+    train_loss_avg = train_loss_total / train_batch_cnt
+    print("train loss:", train_loss_avg)
+
     with torch.no_grad():
         for batch_idx, (inputs, targets) in enumerate(loader):
             inputs = inputs.to(opt.device)
@@ -70,12 +106,12 @@ def test_model_regression(model, dataset):
             outputs = model(inputs)
             loss = criterion(outputs,targets)
             loss_total+=loss.item()
-            #batch_cnt += 1
+            batch_cnt += 1
             #_, predicted = outputs.max(1)
             #total += targets.size(0)
             #correct += predicted.eq(targets).sum().item()
     #acc = 100.0 * correct / total
-    return loss_total
+    return loss_total/batch_cnt
 
 
 
@@ -183,6 +219,7 @@ def train_model_student(model_, dataset, save_path, idx,
                         lr_schedule=opt.tr_fu_lr_schedule,
                         from_scratch=opt.tr_fu_from_scratch):
     acc_best = 0
+    best_train_acc = 0
     model_best = None
     model = torch.nn.DataParallel(model_.to(opt.device))
     criterion = nn.CrossEntropyLoss()
@@ -194,8 +231,8 @@ def train_model_student(model_, dataset, save_path, idx,
         optimizer = optim.Adam(model.parameters(), lr=lr,
                               weight_decay=weight_decay)
     if lr_schedule == 'step':
-        scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=100,
-                                              gamma=0.1)
+        scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=50,
+                                              gamma=0.2)
     elif lr_schedule == 'linear':
         batch_cnt = len(dataset.train_loader)
         n_total_exp = epochs * batch_cnt
@@ -227,7 +264,9 @@ def train_model_student(model_, dataset, save_path, idx,
             #if lr_schedule == 'linear':
             loss_total += loss.item()
             batch_cnt += 1
-        print("train acc: ", 100*correct/total)
+
+
+
         scheduler.step()
         opt.writer.add_scalar('training_%d/loss' % (idx), loss_total / batch_cnt, i)
         acc = test_model(model, dataset)
@@ -262,8 +301,8 @@ def train_model_student_regression(model_, dataset, save_path, idx,
         optimizer = optim.Adam(model.parameters(), lr=lr,
                               weight_decay=weight_decay)
     if lr_schedule == 'step':
-        scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=100,
-                                              gamma=0.1)
+        scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=10,
+                                              gamma=0.4)
     elif lr_schedule == 'linear':
         batch_cnt = len(dataset.train_loader)
         n_total_exp = epochs * batch_cnt
@@ -297,10 +336,10 @@ def train_model_student_regression(model_, dataset, save_path, idx,
             batch_cnt += 1
         #print("train acc: ", 100*correct/total)
         scheduler.step()
-        opt.writer.add_scalar('training_%d/loss' % (idx), loss_total , i)
+        opt.writer.add_scalar('training_%d/loss' % (idx), loss_total/batch_cnt , i)
         test_loss = test_model_regression(model, dataset)
         #opt.writer.add_scalar('training_%d/acc' % (idx), acc, i)
-        print('train loss: ', loss_total)
+        print('train loss: ', loss_total/batch_cnt)
         print('test loss: ',test_loss)
         if test_loss < loss_best:
             loss_best = test_loss
@@ -443,10 +482,6 @@ def train_model_student_kd_reg(teacher_, model_, dataset, save_path, idx,
             model_best = model.module
             torch.save(model_best, save_path)
     return model_best, loss_best
-
-
-
-
 
 
 

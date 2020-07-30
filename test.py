@@ -13,8 +13,9 @@ import models
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 dataset = getattr(datasets,'Artificial')()
-teacher_model_path = './models/pretrained/sample5_artificial.pth'
-teacher_model_path = "save/GroundTruth6_artificial_1/sample6_artificial.pth"
+teacher_model_path = './models/pretrained/sample6_artificial.pth'
+#teacher_model_path = 'temp_save/start.pth'
+teacher_model_path = "save/GroundTruth6_artificial_redo2/sample6_artificial.pth"
 #teacher_model_path = './base/groundtruth4.pth'
 teacher = torch.load(teacher_model_path)
 #teacher = models.GroundTruth4()
@@ -33,8 +34,8 @@ print("teacher model acc: %4.2f" %(full_acc))
 #print("teacher params number: ", teacher_params)
 
 
-model_path = "save/sample5_artificial_bo_only_cons0.02/fully_kd_"
-opt.writer = SummaryWriter('./runs/sample5_artificial_random')
+model_path = "save/sample6_artificial_bo_cons_only_fixed/fully_kd_"
+opt.writer = SummaryWriter('./runs/sample8_artificial_random')
 
 def in_(x, set1):
     for i in set1:

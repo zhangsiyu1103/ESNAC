@@ -13,8 +13,8 @@ import models
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 dataset = getattr(datasets,'Artificial')()
-teacher_model_path = './models/pretrained/sample5_artificial.pth'
-teacher_model_path = "save/Sample7_artificial_0/sample7_artificial.pth"
+#teacher_model_path = './models/pretrained/sample7_artificial.pth'
+teacher_model_path = "save/Sample7_artificial_large_data/sample7_artificial.pth"
 #teacher_model_path = './base/groundtruth4.pth'
 teacher = torch.load(teacher_model_path)
 #teacher = models.GroundTruth4()
@@ -28,13 +28,13 @@ opt.co_graph_gen = 'get_graph_vgg'
 teacher = Architecture(*(getattr(gr, opt.co_graph_gen)(teacher)))
 print(teacher)
 teacher_params = teacher.param_n()
-full_acc = tr.test_model_regression(teacher,dataset)
-print("teacher model loss: %4.3f" %(full_acc))
+full_loss = tr.test_model_regression(teacher,dataset)
+print("teacher model loss: %4.3f" %(full_loss))
 #print("teacher params number: ", teacher_params)
 
 
-model_path = "save/sample5_artificial_bo_only_cons0.02/fully_kd_"
-opt.writer = SummaryWriter('./runs/sample5_artificial_random')
+model_path = "save/sample7_artificial_random/fully_kd_"
+opt.writer = SummaryWriter('./runs/sample7_artificial_random')
 
 def in_(x, set1):
     for i in set1:
@@ -58,7 +58,7 @@ def diff_(set1, set2):
 #    evaluator = GPUEnergyEvaluator(gpuid=0, watts_offset=False)
 #    start_time=time.time()
 #    evaluator.start()
-#    acc = tr.test_model(model, dataset)
+#    loss = tr.test_model_regression(model, dataset)
 #    energy_used = evaluator.end()
 #    time_used = time.time() - start_time
 #    student_params = model.param_n()
@@ -66,4 +66,4 @@ def diff_(set1, set2):
 #    print("model size: ", c)
 #    print("Energy used: ", energy_used/10000)
 #    print("Time_used: ", time_used)
-#    print("model %d acc: %4.2f" %(i, acc))
+#    print("model %d loss: %4.3f" %(i, loss))
