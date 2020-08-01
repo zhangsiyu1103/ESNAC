@@ -231,7 +231,7 @@ def train_model_student(model_, dataset, save_path, idx,
         optimizer = optim.Adam(model.parameters(), lr=lr,
                               weight_decay=weight_decay)
     if lr_schedule == 'step':
-        scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=50,
+        scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=20,
                                               gamma=0.2)
     elif lr_schedule == 'linear':
         batch_cnt = len(dataset.train_loader)

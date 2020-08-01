@@ -19,7 +19,7 @@ def get_graph_vgg(vgg):
     for module in vgg.modules():
         if isinstance(module, Layer.supported_base):
             hooks.append(module.register_forward_hook(record_hook))
-    input = torch.rand(1, 3, 6, 6, device=opt.device)
+    input = torch.rand(1, 3, 16, 16, device=opt.device)
     output = vgg(input)
     for hook in hooks:
         hook.remove()

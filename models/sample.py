@@ -282,6 +282,33 @@ class GroundTruth9(nn.Module):
         return x
 
 
+class GroundTruth10(nn.Module):
+
+    def __init__(self, n_classes=10):
+        super(GroundTruth10, self).__init__()
+
+        self.conv1 = nn.Conv2d(3, 3, kernel_size = 3)
+
+        self.relu1 = nn.ReLU(inplace = True)
+
+        self.flatten = Flatten()
+
+        self.linear1 = nn.Linear(588, 96)
+
+        self.relu2 = nn.ReLU(inplace = True)
+
+        self.linear2 = nn.Linear(96, n_classes)
+
+
+
+    def forward(self, x):
+        x = self.conv1(x)
+        x = self.relu1(x)
+        x = self.flatten(x)
+        x = self.linear1(x)
+        x = self.relu2(x)
+        x = self.linear2(x)
+        return x
 
 
 
@@ -566,6 +593,49 @@ class Sample9(nn.Module):
 
 
 
+class Sample10(nn.Module):
+
+    def __init__(self, n_classes=10):
+        super(Sample10, self).__init__()
+
+        self.conv1 = nn.Conv2d(3, 6, kernel_size = 3)
+
+        self.relu1 = nn.ReLU(inplace = True)
+
+        self.conv2 = nn.Conv2d(6, 6, kernel_size = 3)
+
+        self.relu2 = nn.ReLU(inplace = True)
+
+        self.flatten = Flatten()
+
+        self.linear1 = nn.Linear(864, 512)
+
+        self.relu3 = nn.ReLU(inplace = True)
+
+        self.linear2 = nn.Linear(512, 512)
+
+        self.relu4 = nn.ReLU(inplace = True)
+
+        self.linear3 = nn.Linear(512, n_classes)
+
+
+    def forward(self, x):
+        x = self.conv1(x)
+        x = self.relu1(x)
+        x = self.conv2(x)
+        x = self.relu2(x)
+        x = self.flatten(x)
+        x = self.linear1(x)
+        x = self.relu3(x)
+        x = self.linear2(x)
+        x = self.relu4(x)
+        x = self.linear3(x)
+        return x
+
+
+
+
+
 def sample0(**kwargs):
     return Sample0(**kwargs)
 
@@ -590,6 +660,10 @@ def sample8(**kwargs):
 
 def sample9(**kwargs):
     return Sample9(**kwargs)
+
+def sample10(**kwargs):
+    return Sample10(**kwargs)
+
 
 
 def groundtruth(**kwargs):

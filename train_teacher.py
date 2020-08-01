@@ -31,7 +31,7 @@ def seed_everything(seed=127):
 def fully_train(model, dataset):
     dataset = getattr(datasets, dataset)()
     model, acc=tr.train_model_student(model, dataset,
-                        '%s/sample9_artificial.pth' % (opt.savedir), 0)
+                        '%s/sample10_artificial.pth' % (opt.savedir), 0)
     print("accuracy: ",acc)
 
 
@@ -89,7 +89,7 @@ if __name__ == '__main__':
 
 
     model = getattr(models, args.network)()
-    #model = torch.load("temp_save/temp.pth")
+    model = torch.load("temp_save/temp.pth")
     #model = torch.load("save/GroundTruth9_artificial_0/sample9_artificial.pth")
     print(model)
     dataset = getattr(datasets, opt.dataset)()

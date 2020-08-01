@@ -13,9 +13,9 @@ import models
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 dataset = getattr(datasets,'Artificial')()
-teacher_model_path = './models/pretrained/sample6_artificial.pth'
+teacher_model_path = './models/pretrained/sample9_artificial.pth'
 #teacher_model_path = 'temp_save/start.pth'
-teacher_model_path = "save/GroundTruth6_artificial_redo2/sample6_artificial.pth"
+teacher_model_path = "save/GroundTruth9_artificial_redo/sample9_artificial.pth"
 #teacher_model_path = './base/groundtruth4.pth'
 teacher = torch.load(teacher_model_path)
 #teacher = models.GroundTruth4()
@@ -34,7 +34,7 @@ print("teacher model acc: %4.2f" %(full_acc))
 #print("teacher params number: ", teacher_params)
 
 
-model_path = "save/sample6_artificial_bo_cons_only_fixed/fully_kd_"
+model_path = "save/sample9_artificial_random/fully_kd_"
 opt.writer = SummaryWriter('./runs/sample8_artificial_random')
 
 def in_(x, set1):
@@ -50,21 +50,21 @@ def diff_(set1, set2):
             ret.add(i)
     return ret
 
-#for i in range(4):
-#    cur_path = model_path+str(i)+".pth"
-#    model = torch.load(cur_path).to(device)
-#    print(model)
-#    #model.avgpool = nn.AvgPool2d(4, stride=1)
-#    #tr.train_model_student_kd(teacher, model, dataset, "save/resnet34_cifar100_1/fully_kd_"+str(i)+".pth",i)
-#    evaluator = GPUEnergyEvaluator(gpuid=0, watts_offset=False)
-#    start_time=time.time()
-#    evaluator.start()
-#    acc = tr.test_model(model, dataset)
-#    energy_used = evaluator.end()
-#    time_used = time.time() - start_time
-#    student_params = model.param_n()
-#    c = 1.0 * student_params/teacher_params
-#    print("model size: ", c)
-#    print("Energy used: ", energy_used/10000)
-#    print("Time_used: ", time_used)
-#    print("model %d acc: %4.2f" %(i, acc))
+for i in range(4):
+    cur_path = model_path+str(i)+".pth"
+    model = torch.load(cur_path).to(device)
+    print(model)
+    #model.avgpool = nn.AvgPool2d(4, stride=1)
+    #tr.train_model_student_kd(teacher, model, dataset, "save/resnet34_cifar100_1/fully_kd_"+str(i)+".pth",i)
+    evaluator = GPUEnergyEvaluator(gpuid=0, watts_offset=False)
+    start_time=time.time()
+    evaluator.start()
+    acc = tr.test_model(model, dataset)
+    energy_used = evaluator.end()
+    time_used = time.time() - start_time
+    student_params = model.param_n()
+    c = 1.0 * student_params/teacher_params
+    print("model size: ", c)
+    print("Energy used: ", energy_used/10000)
+    print("Time_used: ", time_used)
+    print("model %d acc: %4.2f" %(i, acc))

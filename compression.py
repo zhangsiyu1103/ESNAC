@@ -186,8 +186,6 @@ def random_compression(teacher, dataset, objective, cons_type, cons_val, num_mod
 def fully_train(teacher, dataset, best_n=opt.co_best_n):
     dataset = getattr(datasets, dataset)()
     for i in range(best_n):
-        if i < 2:
-            continue
         print ('Fully train student architecture %d/%d' %(i+1, best_n))
         model = torch.load('%s/arch_%d.pth' % (opt.savedir, i))
         tr.train_model_student(model, dataset,
@@ -213,14 +211,14 @@ if __name__ == '__main__':
 
     seed_everything()
 
-    assert args.network in ['resnet18', 'resnet34','resnet50','resnet101', 'vgg19', 'shufflenet', 'alexnet', 'sample9']
+    assert args.network in ['resnet18', 'resnet34','resnet50','resnet101', 'vgg19', 'shufflenet', 'alexnet', 'sample10']
     assert args.dataset in ['cifar10', 'cifar100', 'imagenet',  'artificial']
 
     if args.network in ['resnet18', 'resnet34', 'resnet50', 'resnet101']:
         opt.co_graph_gen = 'get_graph_resnet'
     #elif args.network in ['resnet50', 'resnet101']:
     #    opt.co_graph_gen = 'get_graph_long_resnet'
-    elif args.network in ['vgg19', 'sample9']:
+    elif args.network in ['vgg19', 'sample10']:
         opt.co_graph_gen = 'get_graph_vgg'
     elif args.network == 'alexnet':
         opt.co_graph_gen = 'get_graph_alex'
@@ -250,7 +248,7 @@ if __name__ == '__main__':
     model = torch.load(opt.model).to(opt.device)
     if args.network == 'alexnet':
         model.flatten = models.Flatten()
-    elif args.network != 'sample9':
+    elif args.network != 'sample10':
         model.avgpool = nn.AvgPool2d(4, stride=1)
     teacher = Architecture(*(getattr(gr, opt.co_graph_gen)(model)))
     #print(teacher)

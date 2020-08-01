@@ -4,7 +4,7 @@ from torch.utils.data import DataLoader
 
 class TrainDataset(Dataset):
     def __init__(self):
-        self.samples = torch.load("./datasets/data/sample/groundtruth9/train.pt")
+        self.samples = torch.load("./datasets/data/sample/groundtruth10/train.pt")
 
     def __len__(self):
         return len(self.samples["image"])
@@ -16,7 +16,7 @@ class TrainDataset(Dataset):
 
 class TestDataset(Dataset):
     def __init__(self):
-        self.samples = torch.load("./datasets/data/sample/groundtruth9/test.pt")
+        self.samples = torch.load("./datasets/data/sample/groundtruth10/test.pt")
 
     def __len__(self):
         return len(self.samples["image"])
